@@ -14,6 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import conflict  # noqa: E402
 import metrics  # noqa: E402
+import probe  # noqa: E402
+import runner  # noqa: E402
+import squad  # noqa: E402
 
 
 def test_metrics_self_check():
@@ -22,6 +25,24 @@ def test_metrics_self_check():
 
 def test_conflict_self_check():
     conflict.demo()
+
+
+def test_runner_self_check():
+    runner.demo()
+
+
+def test_probe_self_check():
+    probe.demo()
+
+
+def test_squad_self_check():
+    """Skipped rather than failed when the split is not cached -- a test that
+    needs a 4 MB download to pass is a test people stop running."""
+    cached = Path(__file__).resolve().parent.parent / "data" / "squad2_dev.json"
+    if not cached.exists():
+        import pytest
+        pytest.skip("dev split not cached; run `python ml/squad.py` once")
+    squad.demo()
 
 
 def test_edit_position_reaches_every_third():
