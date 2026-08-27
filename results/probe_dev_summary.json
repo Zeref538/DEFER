@@ -1,0 +1,29 @@
+{
+  "model": "/kaggle/input/models/metaresearch/llama-3.2/transformers/3b-instruct/1",
+  "split": "dev",
+  "typed_questions": 870,
+  "probed": 870,
+  "known": 138,
+  "known_rate": 0.15862068965517243,
+  "by_type": {
+    "place": {
+      "seen": 137,
+      "known": 38
+    },
+    "person": {
+      "seen": 349,
+      "known": 37
+    },
+    "year": {
+      "seen": 287,
+      "known": 61
+    },
+    "number": {
+      "seen": 97,
+      "known": 2
+    }
+  },
+  "seconds_per_question": 0.1857280433177948,
+  "k": 8,
+  "threshold": 0.75
+}
