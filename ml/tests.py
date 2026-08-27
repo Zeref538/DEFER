@@ -14,9 +14,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import build  # noqa: E402
 import conflict  # noqa: E402
+import generate  # noqa: E402
 import metrics  # noqa: E402
+import kaggle_env  # noqa: E402
 import probe  # noqa: E402
 import runner  # noqa: E402
+import score  # noqa: E402
 import squad  # noqa: E402
 
 
@@ -156,3 +159,66 @@ def test_absent_is_not_zero():
     zero = metrics.summarise([{"slice": "conflict", "verdict": "from_memory"}])
     assert zero["conflict_following"]["rate"] == 0.0, "a measured 0 is a result"
     assert zero["conflict_following"]["rate"] is not None
+
+
+def test_generate_self_check():
+    generate.demo()
+
+
+def test_score_self_check():
+    score.demo()
+
+
+def test_kaggle_env_self_check():
+    kaggle_env.demo()
+
+
+def test_publish_ships_every_module_a_kaggle_run_imports():
+    """The dataset list is hand-written, so it can silently fall behind ml/.
+
+    A missing module does not fail on the laptop -- it fails nine minutes into a
+    GPU session with an ImportError, which is the expensive way to find out.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent / "kernels"))
+    import publish
+
+    shipped = {Path(rel).name for rel in publish.CODE}
+    on_disk = {p.name for p in (Path(__file__).resolve().parent).glob("*.py")}
+    missing = on_disk - shipped
+    assert not missing, f"ml/ has modules the dataset never ships: {sorted(missing)}"
+
+
+def test_the_two_baseline_arms_differ_only_in_grounding():
+    """The `prompt` arm is the control the fine-tune has to beat.
+
+    If the base arm quietly picked up a grounding hint, the gap between them
+    would shrink for a reason that has nothing to do with the model, and the
+    fine-tune would look better than it is by comparison.
+    """
+    assert "passage" not in generate.ARMS["base"].lower()
+    assert "only the passage" in generate.ARMS["prompt"].lower()
+    for name, system in generate.ARMS.items():
+        assert "say so" in system, f"{name} must permit abstention"
+        assert "explanation" in system, f"{name} must ask for a short answer"
+
+
+def test_scoring_a_stale_arm_is_refused_not_ranked():
+    """Two arms answering two different evals must never end up in one table."""
+    import json
+    import tempfile
+
+    work = Path(tempfile.mkdtemp())
+    arm = work / "runs" / "ghost"
+    arm.mkdir(parents=True)
+    runner.atomic_write(arm / "generations.jsonl",
+                        '{"qid": "a", "generation": "x"}' + "\n")
+    runner.atomic_write(arm / "run.json",
+                        json.dumps({"eval_sha256": "f" * 64}))
+    saved, score.RUNS = score.RUNS, work / "runs"
+    try:
+        score.load_arm("ghost", "a" * 64, 1, log=lambda *a: None)
+        raise AssertionError("a stale eval hash must stop the score")
+    except SystemExit as exc:
+        assert "different evaluation set" in str(exc)
+    finally:
+        score.RUNS = saved

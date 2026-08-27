@@ -1,11 +1,10 @@
 """DEFER - Phase 0.2, the closed-book probe. The whole run lives here.
 
 This is imported by a three-line stub notebook rather than being the notebook,
-and that split is deliberate. Kaggle's accelerator choice (T4 vs P100) cannot be
-set through the API, and every `kaggle kernels push` resets it to the default
-P100 -- which cannot run this PyTorch at all. So the notebook is pushed once,
-its GPU is set once by hand, and from then on the logic is updated by publishing
-a new version of the attached code dataset. Nothing touches the notebook again.
+and that split is deliberate: a `kaggle kernels push` replaces the notebook and
+starts a fresh version, while a `kaggle datasets version` swaps the code under a
+notebook that stays put. Shipping logic through the dataset means the notebook,
+its settings and its run history are never disturbed by a code change.
 
 Asks each question with no passage attached and records whether the model
 already knows the answer. Only reliably-known questions can become conflict
@@ -17,52 +16,19 @@ Both SQuAD splits in one run: about 50 minutes at the measured 0.186 s/question.
 Output: /kaggle/working/probe_{dev,train}.jsonl, written batch by batch so a
 hard kill loses one batch rather than the run.
 """
-import hashlib
 import json
 import os
-import sys
 import time
 import traceback
 
-MODEL_HINT = "llama-3.2"
-FALLBACK_MODEL = "microsoft/Phi-3.5-mini-instruct"
 SPLITS = ["dev", "train"]
 TIME_BUDGET_S = 7.5 * 3600
-
-
-def line(title):
-    print()
-    print("=" * 68)
-    print(title)
-    print("=" * 68, flush=True)
-
-
-def die(what, why, fix):
-    print()
-    print(f"  FAILED: {what}")
-    print(f"  what it means: {why}")
-    print(f"  what to do:    {fix}", flush=True)
-    sys.exit(1)
-
-
-def code_fingerprint(directory):
-    """A short hash of the code that is actually running.
-
-    An attached dataset can serve an older version than the one just published,
-    and stale code producing plausible-looking results is the worst failure mode
-    there is. Printing this makes it visible instead of silent.
-    """
-    digest = hashlib.sha256()
-    for name in sorted(os.listdir(directory)):
-        if name.endswith(".py"):
-            digest.update(name.encode())
-            digest.update(open(os.path.join(directory, name), "rb").read())
-    return digest.hexdigest()[:12]
-
 
 import conflict            # noqa: E402
 import probe as probe_mod  # noqa: E402
 import squad               # noqa: E402
+from kaggle_env import (assert_size, check_gpu, code_fingerprint, die,  # noqa: E402
+                        find_model, line)
 from runner import JsonlSink  # noqa: E402
 
 CODE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -87,59 +53,11 @@ def main():
 
     # ------------------------------------------------------- 2. is the GPU usable
     line("1. checking the GPU is one this PyTorch can actually run on")
-
-    import torch  # noqa: E402
-
-    print(f"  torch {torch.__version__}, cuda available: {torch.cuda.is_available()}")
-    if not torch.cuda.is_available():
-        die("no GPU", "This notebook was scheduled without an accelerator.",
-            "Settings -> Accelerator -> GPU T4 x2.")
-
-    _name = torch.cuda.get_device_name(0)
-    _major, _minor = torch.cuda.get_device_capability(0)
-    _this = f"sm_{_major}{_minor}"
-    _built = torch.cuda.get_arch_list()
-    print(f"  device: {_name}  ({_this})")
-    print(f"  this PyTorch was built for: {' '.join(_built)}")
-
-    if _this not in _built:
-        # Caught here rather than at the first generate(), which is on the far side
-        # of a multi-gigabyte model download. The card loads weights happily and
-        # only fails when asked to run compiled code that does not exist for it.
-        die(f"this PyTorch cannot run on a {_name}",
-            f"The card is {_this}; this build only has kernels for "
-            f"{' '.join(_built)}. Nothing is wrong with the code -- there is simply "
-            "no compiled GPU code for this chip, so the first generate() would die "
-            "with 'no kernel image is available for execution on the device'.",
-            "Settings -> Accelerator -> GPU T4 x2, then Save & Run All. This cannot "
-            "be set from the CLI, and a `kernels push` resets it.")
-    print("  usable.")
+    device_name = check_gpu()
 
     # ----------------------------------------------------------- 3. find the model
     line("2. locating the Llama weights")
-
-    model_dir = None
-    for root, _dirs, files in os.walk("/kaggle/input"):
-        if "config.json" in files and any(f.endswith(".safetensors") for f in files):
-            if MODEL_HINT in root.lower():
-                model_dir = root
-                break
-
-    if model_dir is None:
-        print("  no mounted Llama checkpoint found. /kaggle/input holds:")
-        for root, dirs, files in os.walk("/kaggle/input"):
-            if root.count(os.sep) - "/kaggle/input".count(os.sep) > 4:
-                continue
-            print(f"    {root}  ->  {files[:5]}")
-        model_ref = FALLBACK_MODEL
-        print()
-        print(f"  FALLING BACK to {FALLBACK_MODEL} (ungated, MIT).")
-        print("  For Llama, accept Meta's terms at")
-        print("  https://www.kaggle.com/models/metaresearch/llama-3.2 and re-run.")
-    else:
-        model_ref = model_dir
-        print(f"  weights at: {model_dir}")
-
+    model_ref = find_model()
     print()
     print(f"  MODEL IN USE: {model_ref}")
 
@@ -148,13 +66,8 @@ def main():
     try:
         started = time.time()
         model, tokenizer = probe_mod.load_model(model_ref)
-        params = sum(p.numel() for p in model.parameters())
-        print(f"  loaded in {time.time() - started:.0f}s, {params / 1e9:.2f}B parameters")
-        if not 2.5e9 < params < 4.5e9:
-            die("that is not the model this study is designed around",
-                f"Counted {params / 1e9:.2f}B parameters. The previous study found "
-                "1.5B too small to learn the behaviour, so size is not cosmetic.",
-                "Check MODEL_HINT / FALLBACK_MODEL at the top of this script.")
+        print(f"  loaded in {time.time() - started:.0f}s")
+        assert_size(model)
     except SystemExit:
         raise
     except Exception as exc:
@@ -253,7 +166,7 @@ def main():
 
     summary = {
         "model": model_ref,
-        "device": _name,
+        "device": device_name,
         "splits": summaries,
         "seconds_per_question": per_question,
         "k": probe_mod.K,
