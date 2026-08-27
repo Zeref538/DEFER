@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import build  # noqa: E402
 import conflict  # noqa: E402
 import metrics  # noqa: E402
 import probe  # noqa: E402
@@ -25,6 +26,29 @@ def test_metrics_self_check():
 
 def test_conflict_self_check():
     conflict.demo()
+
+
+def test_build_self_check():
+    """Exercises the real assembly, including the eval/training overlap check
+    that caught a reserved eval item being pulled back into training."""
+    cached = Path(__file__).resolve().parent.parent / "runs" / "probe" / "probe_dev.jsonl"
+    if not cached.exists():
+        import pytest
+        pytest.skip("probe output not present; run the phase 0 kernel first")
+    build.demo()
+
+
+def test_eval_lock_matches_the_eval_file():
+    """The guard against quietly nudging the eval until the number improves."""
+    import hashlib
+    data = Path(__file__).resolve().parent.parent / "data"
+    if not (data / "eval.lock").exists():
+        import pytest
+        pytest.skip("eval not built yet; run `python ml/build.py`")
+    digest = hashlib.sha256((data / "eval.jsonl").read_bytes()).hexdigest()
+    assert digest == (data / "eval.lock").read_text(encoding="utf-8").strip(), (
+        "data/eval.jsonl does not match data/eval.lock -- the frozen eval "
+        "changed after it was locked, so no result measured on it is comparable")
 
 
 def test_runner_self_check():

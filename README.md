@@ -7,9 +7,10 @@ DEFER measures how often that happens to a small open model, tries to fix it, an
 reports what the fix costs. *To defer* means yielding to something outside
 yourself. The bug is a model that defers to its own memory instead.
 
-**Status: specification. Nothing has been trained or measured yet.** There are no
-results in this repository, and no number below is a result. When there are, they
-land in [`results/scores.txt`](results/) first and are copied here second.
+**Status: phase 0 complete.** The base model has been probed and the evaluation
+set is built and locked. Nothing has been fine-tuned yet, so there is still no
+result for the headline question — every number below is a measurement of the
+data or the base model, never of a trained checkpoint.
 
 ---
 
@@ -36,16 +37,49 @@ memorised. So the first thing the pipeline does is ask questions with no context
 at all and keep the ones it already knows. Everything else is built from that
 list.
 
-## How many conflict items that actually yields
+## What the base model already knows
 
-Measured on SQuAD 2.0 dev (5,928 answerable questions), before the probe filter
-narrows it further:
+Measured, not assumed. Llama-3.2-3B-Instruct asked 15,944 questions with no
+passage at all, eight samples each, on a Kaggle T4 at 0.186 seconds per question:
 
-| stage | items |
+| split | typed questions | reliably known |
+|---|---:|---:|
+| dev | 870 | 137 (15.7%) |
+| train | 15,074 | 2,083 (13.8%) |
+
+Only those 2,220 can become conflict items. You cannot catch a model preferring
+its memory over the page about a fact it never memorised -- it would have read
+the page anyway.
+
+The shape of that number matters more than the number. Of 870 dev questions,
+612 scored 0 of 8 and 105 scored 8 of 8, with only 153 spread across the middle.
+The model knows a fact cold or not at all, so the "counts as known at 6 of 8"
+cutoff sits in an empty valley rather than on a slope, and the headline is not
+sensitive to where the line was drawn.
+
+## The frozen evaluation set
+
+**1,083 items, locked.** `data/eval.lock` holds its sha256 and every scoring run
+refuses to proceed on a mismatch.
+
+| slice | items |
 |---|---:|
-| answerable questions in | 5,928 |
-| survive question typing and the safety checks | 810 |
-| after levelling the slice so no one type or position dominates | **486** |
+| conflict | 483 |
+| grounded | 300 |
+| unanswerable | 300 |
+
+The conflict slice is sized by the width of its error bars, not by taste. A
+bootstrap at a rate of 0.30 gives a 22-point interval at 68 items, 11.8 at 238,
+and 8.0 at 500. The previous study measured an 18-point spread between two
+seeds, so anything near 238 could not be ranked against noise.
+
+Dev alone yields only 68 balanced conflict items, so part of the train split is
+reserved for the evaluation and kept out of training, enforced by question id.
+That check earned its keep immediately: the first build pulled one reserved item
+back into training through a pool that excluded training conflict items but not
+reserved ones, and the assertion caught it.
+
+## Why so much of SQuAD is thrown away
 
 Most of the loss is deliberate. The builder only accepts questions whose wording
 announces what kind of thing the answer is — *who*, *what year*, *how many*,
@@ -89,9 +123,10 @@ INCONCLUSIVE**, not ranked.
 
 ## Results
 
-Not yet run. This section will hold the arm-by-arm table once `ml/score.py` has
-something to score. Arms planned: `base`, `prompt` (the free baseline, measured
-before any training), `defer_s0`, `defer_s1`.
+Nothing trained yet, so this section is empty on purpose. It will hold the
+arm-by-arm table once `ml/score.py` has something to score. Arms planned:
+`base`, `prompt` (the free baseline, measured before any training), `defer_s0`,
+`defer_s1`.
 
 ## What gets measured before anything is trained
 
