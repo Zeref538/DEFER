@@ -21,8 +21,11 @@ import sys
 import time
 import traceback
 
-MODEL = "meta-llama/Llama-3.2-3B-Instruct"
-SECRET_NAME = "HF_TOKEN"
+# The weights come from Kaggle's own copy of Meta's model, attached through
+# `model_sources` in kernel-metadata.json, not downloaded from Hugging Face.
+# That removes the access token, the Kaggle secret and the gate check from this
+# run entirely -- three things that can fail, replaced by a mounted directory.
+MODEL_HINT = "llama-3.2"
 SPLIT = "dev"
 OUT = "/kaggle/working/probe_dev.jsonl"
 
@@ -82,18 +85,31 @@ conflict.demo()
 probe_mod.demo()
 print("  module self-checks passed")
 
-# --------------------------------------------------------------- 2. the token
-line("2. reading the Hugging Face token")
-try:
-    from kaggle_secrets import UserSecretsClient
+# --------------------------------------------------------------- 2. the model
+line("2. locating the attached Llama weights")
 
-    token = UserSecretsClient().get_secret(SECRET_NAME)
-    print(f"  secret {SECRET_NAME!r} found, {len(token)} characters")
-except Exception as exc:
-    die(f"could not read the secret {SECRET_NAME!r}",
-        f"{type(exc).__name__}: {exc}  (this wording appears when the secret is "
-        "not attached, not only when the network is down)",
-        "Add-ons -> Secrets -> create HF_TOKEN and tick it for THIS notebook.")
+model_dir = None
+for root, _dirs, files in os.walk("/kaggle/input"):
+    if "config.json" in files and any(f.endswith(".safetensors") for f in files):
+        if MODEL_HINT in root.lower():
+            model_dir = root
+            break
+
+if model_dir is None:
+    print("  /kaggle/input actually contains:")
+    for root, dirs, files in os.walk("/kaggle/input"):
+        if root.count(os.sep) - "/kaggle/input".count(os.sep) > 4:
+            continue
+        print(f"    {root}  ->  {files[:5]}")
+    die("the Llama model is not attached",
+        "Nothing under /kaggle/input looks like a transformers checkpoint whose "
+        f"path contains {MODEL_HINT!r}.",
+        "Attach metaresearch/llama-3.2/transformers/3b-instruct to this "
+        "notebook. Accepting Meta's terms on the Kaggle model page is a "
+        "separate click from accepting them on Hugging Face.")
+
+print(f"  weights at: {model_dir}")
+print(f"  files: {sorted(os.listdir(model_dir))[:8]}")
 
 # ----------------------------------------------------------- 3. the questions
 line(f"3. loading SQuAD 2.0 {SPLIT} and keeping the typeable questions")
@@ -110,7 +126,7 @@ if not items:
         "Run `python ml/conflict.py` locally; something in the typing broke.")
 
 # --------------------------------------------------------------- 4. the model
-line(f"4. loading {MODEL}")
+line("4. loading the model")
 try:
     import torch
 
@@ -118,7 +134,7 @@ try:
     if torch.cuda.is_available():
         print(f"  device: {torch.cuda.get_device_name(0)}")
     started = time.time()
-    model, tokenizer = probe_mod.load_model(MODEL, token=token)
+    model, tokenizer = probe_mod.load_model(model_dir)
     params = sum(p.numel() for p in model.parameters())
     print(f"  loaded in {time.time() - started:.0f}s, {params / 1e9:.2f}B parameters")
     if not 2.5e9 < params < 4.5e9:
@@ -132,8 +148,8 @@ except Exception as exc:
     traceback.print_exc()
     die("the model would not load",
         f"{type(exc).__name__}: {exc}",
-        "A 403 means the Llama licence is not accepted by the account that "
-        "owns this token. Anything else is usually transient - re-run once.")
+        "The files are mounted, so this is not an access problem. Check the "
+        "transformers version against the checkpoint format.")
 
 generate = probe_mod.hf_generator(model, tokenizer)
 
@@ -215,7 +231,7 @@ for kind, (seen, known) in sorted(by_type.items()):
     print(f"    {kind:8} {known:5} / {seen:5}  ({known / seen:.1%})")
 
 summary = {
-    "model": MODEL,
+    "model": model_dir,
     "split": SPLIT,
     "typed_questions": len(items),
     "probed": stats["n"],
