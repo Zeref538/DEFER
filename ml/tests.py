@@ -39,7 +39,7 @@ def test_short_passage_does_not_crash():
 def test_holdout_never_leaks_into_training():
     """The whole point of the held-out type: it must not be trainable on."""
     items = [
-        {"qid": f"p{i}", "question": "Where was it signed?",
+        {"qid": f"p{i}", "question": "What city was it signed in?",
          "passage": f"Talks ran long. It was signed in {city} that year.",
          "gold": city}
         for i, city in enumerate(["Vienna", "Lisbon", "Oslo", "Prague"])
@@ -47,9 +47,9 @@ def test_holdout_never_leaks_into_training():
         {"qid": f"y{i}", "question": "In what year was it founded?",
          "passage": f"It grew slowly. The body was founded in {yr} by traders.",
          "gold": yr}
-        for i, yr in enumerate(["1834", "1902", "1755"])
+        for i, yr in enumerate(["1834", "1867", "1812"])
     ]
-    records, _ = conflict.build(items, seed=3)
+    records, _ = conflict.build(items, seed=3, min_pool=2)
     train, held = conflict.split_holdout(records, held_out_type="year")
 
     assert held, "holdout must not be empty"
@@ -66,14 +66,15 @@ def test_substitute_is_same_type_as_the_answer_it_replaces():
         {"qid": f"y{i}", "question": "In what year did it open?",
          "passage": f"Work finished early. The hall opened in {yr} to great noise.",
          "gold": yr}
-        for i, yr in enumerate(["1834", "1902", "1755", "1990"])
+        for i, yr in enumerate(["1834", "1867", "1812", "1880"])
     ] + [
         {"qid": f"w{i}", "question": "Who led it?",
          "passage": f"The group met often. {name} led it for a decade.",
          "gold": name}
         for i, name in enumerate(["Hoover", "Marshall", "Attlee"])
     ]
-    records, _ = conflict.build(items, seed=5)
+    records, _ = conflict.build(items, seed=5, min_pool=2)
+    assert records, "fixture built nothing - the loop below would pass vacuously"
     for r in records:
         if r["edit_type"] == "year":
             assert conflict._YEAR.match(r["answer"]), r
@@ -85,13 +86,13 @@ def test_no_conflict_item_leaks_its_memorised_answer():
     """The invariant the headline number rests on: if the memorised answer is
     still somewhere in the prompt, the item cannot catch anything."""
     items = [
-        {"qid": f"c{i}", "question": "Where is the capital?",
+        {"qid": f"c{i}", "question": "What is the capital?",
          "passage": f"The region is old. The capital, {city}, sits by the river. "
                     f"{city} has grown since.",
          "gold": city}
         for i, city in enumerate(["Paris", "Vienna", "Lisbon", "Oslo"])
     ]
-    records, drops = conflict.build(items, seed=7)
+    records, drops = conflict.build(items, seed=7, min_pool=2)
     assert records, f"nothing built, drops={dict(drops)}"
     for r in records:
         prompt = r["passage"] + " " + r["question"]

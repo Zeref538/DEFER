@@ -36,6 +36,28 @@ memorised. So the first thing the pipeline does is ask questions with no context
 at all and keep the ones it already knows. Everything else is built from that
 list.
 
+## How many conflict items that actually yields
+
+Measured on SQuAD 2.0 dev (5,928 answerable questions), before the probe filter
+narrows it further:
+
+| stage | items |
+|---|---:|
+| answerable questions in | 5,928 |
+| survive question typing and the safety checks | 810 |
+| after levelling the slice so no one type or position dominates | **486** |
+
+Most of the loss is deliberate. The builder only accepts questions whose wording
+announces what kind of thing the answer is — *who*, *what year*, *how many*,
+*what city* — because guessing between a person, a place and a thing needs an
+entity model, and a wrong guess writes a passage that reads as broken. Bare
+*"what is X"* is left alone. So is bare *"where"*, after it turned out to answer
+with things like `"third"` and `"between P and PSPACE"`.
+
+The levelling matters more than it looks: 57% of SQuAD answers sit in the first
+third of their passage, and an evaluation set shaped like that quietly rewards a
+model that skims the opening and stops.
+
 ## Why this project exists
 
 Four projects already shipped here — Aegix, Solmara, zeref-bot and callback-ai —
@@ -156,3 +178,9 @@ Reasoning: [ADR 0004](docs/adr/0004-replay-demo-not-live-inference.md).
   in production.
 - No retriever. Passages are handed to the model directly. This measures reading,
   not retrieval.
+- **Edited passages can be anachronistic.** Substitutes are checked for type,
+  magnitude and era — a count stays a count, a year stays within sixty years of
+  the one it replaced — but nothing here knows any history, so a tenth-century
+  Norse leader can end up renamed to a twentieth-century one. Fixing that needs
+  world knowledge the pipeline deliberately does not have. If a model refuses
+  such a passage, that shows up as over-abstention and is reported, not hidden.
