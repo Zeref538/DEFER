@@ -1,0 +1,11 @@
+# Force LF in the working tree on every platform.
+#
+# Why this file exists: on Windows, git's default (core.autocrlf=true) checks
+# markdown out with CRLF line endings. The portfolio's indexer, scripts/build-index.mjs,
+# once collapsed an entire CRLF README into a single useless search chunk. This
+# makes the fix structural instead of something a future checkout can undo.
+* text=auto eol=lf
+
+# Data and logs are LF too — a CRLF JSONL file breaks line-by-line readers.
+*.jsonl text eol=lf
+*.lock  text eol=lf

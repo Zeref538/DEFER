@@ -1,0 +1,30 @@
+# secrets — never commit
+.env
+.env.local
+*.token
+hf_token*
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# model weights — these live on Hugging Face, not in git
+*.safetensors
+*.bin
+*.gguf
+adapter_model*
+checkpoints/
+
+# large intermediates — regenerate with data/build.py
+data/squad2*.json
+data/probe_raw.jsonl
+
+# os / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
