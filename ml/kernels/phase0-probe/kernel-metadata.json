@@ -15,5 +15,6 @@
   "model_sources": [
     "metaresearch/llama-3.2/transformers/3b-instruct/1"
   ],
-  "kernel_sources": []
+  "kernel_sources": [],
+  "machine_shape": "NvidiaTeslaT4"
 }
