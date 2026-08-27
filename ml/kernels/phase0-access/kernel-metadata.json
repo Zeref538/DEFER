@@ -1,0 +1,15 @@
+{
+  "id": "johnandreimartinez/defer-phase0-access",
+  "title": "defer-phase0-access",
+  "code_file": "phase0_access.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "model_sources": [],
+  "kernel_sources": []
+}

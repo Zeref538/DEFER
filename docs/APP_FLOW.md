@@ -40,11 +40,11 @@ flowchart TD
 | # | command | consumes | emits | GPU |
 |---|---|---|---|---|
 | 0.1 | first cell of the notebook | `HF_TOKEN` | a printed parameter count and model id | yes |
-| 0.2 | `python data/probe.py` | SQuAD 2.0 questions | `data/probe.jsonl` | yes |
-| 0.3 | `python data/conflict.py` | `data/probe.jsonl` | conflict items | no |
+| 0.2 | `python ml/probe.py` | SQuAD 2.0 questions | `data/probe.jsonl` | yes |
+| 0.3 | `python ml/conflict.py` | `data/probe.jsonl` | conflict items | no |
 | 0.4 | `python -m pytest ml/tests.py -q` | conflict items | pass/fail | no |
 | 0.5 | `python ml/generate.py --arm base --arm prompt` | `data/eval.jsonl` | `runs/base/`, `runs/prompt/` | yes |
-| 1 | `python data/build.py` | probe + conflict + SQuAD 2.0 | `data/eval.jsonl`, `data/eval.lock`, `data/train_*.jsonl` | no |
+| 1 | `python ml/build.py` | probe + conflict + SQuAD 2.0 | `data/eval.jsonl`, `data/eval.lock`, `data/train_*.jsonl` | no |
 | 2 | `python ml/train.py --seed 0` (then `--seed 1`) | `data/train_*.jsonl` | adapter checkpoints | yes |
 | 3 | `python ml/generate.py --arm defer_s0 --arm defer_s1` | adapters + frozen eval | `runs/defer_s*/` | yes |
 | 3 | `python ml/score.py` | `runs/`, `data/eval.lock` | `results/scores.txt` | **no** |
