@@ -96,6 +96,38 @@ probe_mod.demo()
 squad.demo()
 print("  module self-checks passed")
 
+# ------------------------------------------------------- 1b. is the GPU usable
+line("1b. checking the GPU is one this PyTorch can actually run on")
+
+import torch  # noqa: E402
+
+print(f"  torch {torch.__version__}, cuda available: {torch.cuda.is_available()}")
+if not torch.cuda.is_available():
+    die("no GPU", "This notebook was scheduled without an accelerator.",
+        "Set enable_gpu in kernel-metadata.json, or Settings -> Accelerator.")
+
+_name = torch.cuda.get_device_name(0)
+_major, _minor = torch.cuda.get_device_capability(0)
+_this = f"sm_{_major}{_minor}"
+_built = torch.cuda.get_arch_list()
+print(f"  device: {_name}  ({_this})")
+print(f"  this PyTorch was built for: {' '.join(_built)}")
+
+if _this not in _built:
+    # Caught here rather than at the first generate() call, which is on the far
+    # side of a multi-gigabyte model download. The card loads weights happily
+    # and only fails when asked to run compiled code that does not exist for it:
+    #   CUDA error: no kernel image is available for execution on the device
+    die(f"this PyTorch cannot run on a {_name}",
+        f"The card is {_this}; this build only has kernels for "
+        f"{' '.join(_built)}. Nothing is wrong with the code -- there is simply "
+        "no compiled GPU code for this chip, so the first generate() would die "
+        "with 'no kernel image is available for execution on the device'.",
+        'Set "machine_shape": "gpu-t4x2" in kernel-metadata.json, or pick a T4 '
+        "under Settings -> Accelerator. The P100 is a 2016 card and current "
+        "PyTorch has dropped it.")
+print("  usable.")
+
 # --------------------------------------------------------------- 2. the model
 line("2. locating the attached Llama weights")
 
@@ -144,11 +176,6 @@ if not items:
 # --------------------------------------------------------------- 4. the model
 line("4. loading the model")
 try:
-    import torch
-
-    print(f"  torch {torch.__version__}, cuda available: {torch.cuda.is_available()}")
-    if torch.cuda.is_available():
-        print(f"  device: {torch.cuda.get_device_name(0)}")
     started = time.time()
     model, tokenizer = probe_mod.load_model(model_ref)
     params = sum(p.numel() for p in model.parameters())
