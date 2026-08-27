@@ -13,6 +13,7 @@ Run the self-check:  python ml/squad.py
 from __future__ import annotations
 
 import json
+import os
 import urllib.request
 from pathlib import Path
 
@@ -22,14 +23,35 @@ SPLITS = {"train": "train-v2.0.json", "dev": "dev-v2.0.json"}
 # The dev split is the one nobody trains on, so it is where the frozen
 # evaluation comes from. Training mixes are drawn from train, and the two never
 # share a qid -- checked in ml/tests.py rather than assumed.
-DEFAULT_DIR = Path(__file__).resolve().parent.parent / "data"
+
+
+def default_dir() -> Path:
+    """Where to cache the downloaded split.
+
+    Beside the repo when the code is checked out normally, which keeps the data
+    next to the project and out of git. But the code does not always live
+    somewhere writable: on Kaggle it is mounted at /kaggle/input/defer-code,
+    read-only, and writing beside it fails with
+
+        OSError: [Errno 30] Read-only file system: '/kaggle/input/data'
+
+    That only ever appears once the code is mounted rather than checked out, so
+    it passes every local test. Fall back to the working directory, which is
+    writable in both places.
+    """
+    beside = Path(__file__).resolve().parent.parent / "data"
+    if beside.exists() and os.access(beside, os.W_OK):
+        return beside
+    if os.access(beside.parent, os.W_OK):
+        return beside
+    return Path.cwd() / "data"
 
 
 def ensure(split: str = "dev", cache_dir=None) -> Path:
     """Download the split if it is not already on disk. Returns its path."""
     if split not in SPLITS:
         raise ValueError(f"split must be one of {sorted(SPLITS)}, got {split!r}")
-    cache_dir = Path(cache_dir or DEFAULT_DIR)
+    cache_dir = Path(cache_dir or default_dir())
     cache_dir.mkdir(parents=True, exist_ok=True)
     target = cache_dir / f"squad2_{split}.json"
     if target.exists() and target.stat().st_size > 1000:
@@ -79,6 +101,10 @@ def items(split: str = "dev", kind: str = "answerable", cache_dir=None) -> list:
 
 def demo():
     """Self-check. Downloads the dev split (4.4 MB) the first time only."""
+    chosen = default_dir()
+    assert os.access(chosen if chosen.exists() else chosen.parent, os.W_OK), (
+        f"cache dir {chosen} is not writable -- this is the Kaggle read-only "
+        "mount failure, and it only shows up where the code is mounted")
     path = ensure("dev")
     assert path.exists() and path.stat().st_size > 1_000_000, path
 

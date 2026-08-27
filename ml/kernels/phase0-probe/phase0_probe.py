@@ -26,6 +26,12 @@ import traceback
 # That removes the access token, the Kaggle secret and the gate check from this
 # run entirely -- three things that can fail, replaced by a mounted directory.
 MODEL_HINT = "llama-3.2"
+
+# The fallback while Meta reviews the access request. Phi-3.5-mini is ungated
+# and MIT-licensed, so it downloads anonymously -- no token, no secret, no
+# approval queue. It is also the declared fallback base model, so if the Llama
+# request never clears, this run is not a rehearsal, it is the study.
+FALLBACK_MODEL = "microsoft/Phi-3.5-mini-instruct"
 SPLIT = "dev"
 OUT = "/kaggle/working/probe_dev.jsonl"
 
@@ -83,6 +89,11 @@ from runner import JsonlSink  # noqa: E402
 # code that passed on the laptop. Cheap guard in front of an expensive job.
 conflict.demo()
 probe_mod.demo()
+# squad.demo() is in here because it touches the filesystem. The first Kaggle
+# run died 80 seconds in trying to cache the dataset next to the code, which is
+# a read-only mount here and a normal folder on a laptop. This catches that
+# class of thing in seconds, before the model is loaded.
+squad.demo()
 print("  module self-checks passed")
 
 # --------------------------------------------------------------- 2. the model
@@ -96,20 +107,25 @@ for root, _dirs, files in os.walk("/kaggle/input"):
             break
 
 if model_dir is None:
-    print("  /kaggle/input actually contains:")
+    # Not fatal any more. Say so loudly, name what is actually being used, and
+    # carry on -- a blocked licence should not stop the pipeline being proven.
+    print("  no mounted Llama checkpoint found. /kaggle/input holds:")
     for root, dirs, files in os.walk("/kaggle/input"):
         if root.count(os.sep) - "/kaggle/input".count(os.sep) > 4:
             continue
         print(f"    {root}  ->  {files[:5]}")
-    die("the Llama model is not attached",
-        "Nothing under /kaggle/input looks like a transformers checkpoint whose "
-        f"path contains {MODEL_HINT!r}.",
-        "Attach metaresearch/llama-3.2/transformers/3b-instruct to this "
-        "notebook. Accepting Meta's terms on the Kaggle model page is a "
-        "separate click from accepting them on Hugging Face.")
+    model_ref = FALLBACK_MODEL
+    print()
+    print(f"FALLING BACK to {FALLBACK_MODEL} (ungated, MIT).")
+    print("  To use Llama instead, accept Meta's terms at")
+    print("  https://www.kaggle.com/models/metaresearch/llama-3.2 and re-run.")
+else:
+    model_ref = model_dir
+    print(f"  weights at: {model_dir}")
+    print(f"  files: {sorted(os.listdir(model_dir))[:8]}")
 
-print(f"  weights at: {model_dir}")
-print(f"  files: {sorted(os.listdir(model_dir))[:8]}")
+print()
+print(f"MODEL IN USE: {model_ref}")
 
 # ----------------------------------------------------------- 3. the questions
 line(f"3. loading SQuAD 2.0 {SPLIT} and keeping the typeable questions")
@@ -134,7 +150,7 @@ try:
     if torch.cuda.is_available():
         print(f"  device: {torch.cuda.get_device_name(0)}")
     started = time.time()
-    model, tokenizer = probe_mod.load_model(model_dir)
+    model, tokenizer = probe_mod.load_model(model_ref)
     params = sum(p.numel() for p in model.parameters())
     print(f"  loaded in {time.time() - started:.0f}s, {params / 1e9:.2f}B parameters")
     if not 2.5e9 < params < 4.5e9:
@@ -231,7 +247,7 @@ for kind, (seen, known) in sorted(by_type.items()):
     print(f"    {kind:8} {known:5} / {seen:5}  ({known / seen:.1%})")
 
 summary = {
-    "model": model_dir,
+    "model": model_ref,
     "split": SPLIT,
     "typed_questions": len(items),
     "probed": stats["n"],
