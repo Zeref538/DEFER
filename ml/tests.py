@@ -259,7 +259,7 @@ def test_replay_shows_a_failure_case():
     distrust the thing. This fails if the failure category empties out."""
     import json
 
-    path = Path(__file__).resolve().parent.parent / "web" / "data" / "replay.json"
+    path = Path(__file__).resolve().parent.parent / "docs" / "data" / "replay.json"
     if not path.exists():
         return
     data = json.loads(path.read_text(encoding="utf-8"))

@@ -24,7 +24,9 @@ from generate import load_eval  # noqa: E402
 from runner import atomic_write  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-WEB = ROOT / "web" / "data"
+# docs/, not web/: GitHub Pages serves either a repo root or a /docs
+# folder and nothing else, and the root is taken by the README.
+WEB = ROOT / "docs" / "data"
 
 # The arms the page shows, in the order it shows them, with the labels a reader
 # who has never heard of an "arm" can follow.
@@ -152,7 +154,7 @@ def build(log=print):
     }
     WEB.mkdir(parents=True, exist_ok=True)
     atomic_write(WEB / "replay.json", json.dumps(payload, ensure_ascii=False, indent=1) + "\n")
-    log(f"  wrote web/data/replay.json ({len(cases)} cases, "
+    log(f"  wrote docs/data/replay.json ({len(cases)} cases, "
         f"{(WEB / 'replay.json').stat().st_size / 1024:.0f} KB)")
     return payload
 

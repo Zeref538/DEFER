@@ -79,7 +79,7 @@ once.
 | `ml/generate.py` | runs an arm over the frozen evaluation set, writes `generations.jsonl` | yes |
 | `ml/metrics.py` | the four metrics plus bootstrap intervals; pure functions over records | no |
 | `ml/score.py` | reads `runs/`, checks `eval.lock`, writes `results/scores.txt` | no |
-| `ml/build_replay.py` | selects illustrative items from `runs/`, writes `web/data/replay.json` | no |
+| `ml/build_replay.py` | selects illustrative items from `runs/`, writes `docs/data/replay.json` | no |
 | `ml/tests.py` | leak checks, schema invariants, metric unit tests | no |
 
 `runner.py` and the `stages.py` split are lifted from `../Refusal Calibration/`.
@@ -121,7 +121,7 @@ base model ┘                          │
    ml/score.py            ml/build_replay.py
         │                        │
         ▼                        ▼
-results/scores.txt      web/data/replay.json ──► web/index.html
+results/scores.txt      docs/data/replay.json ──► docs/index.html
 ```
 
 Formats are in [SCHEMA.md](SCHEMA.md). Everything on disk is JSONL — one JSON
@@ -175,7 +175,7 @@ conftest. The point is that a reader can run one command.
 ## 7. Rollout and rollback
 
 **Rollout.** Kaggle runs the notebooks; `runs/` and `results/` are pulled back and
-committed. The demo deploys as static files to GitHub Pages from `web/`. The
+committed. The demo deploys as static files to GitHub Pages from `docs/` on the default branch. The
 adapter is pushed to Hugging Face as `Zeref538/Llama-3.2-3B-DEFER`, carrying
 "Built with Llama" and the licence, as [ADR 0002](adr/0002-base-model-llama-3-2-3b.md)
 requires.

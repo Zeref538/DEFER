@@ -247,7 +247,7 @@ docs/    the specification — read PRD.md first
 data/    probe, conflict construction, the frozen eval and its lock
 ml/      pipeline stages, training, generation, scoring
 runs/    raw generations, committed — everything published derives from here
-web/     the demo page: static HTML, no build step, no server
+adapters/  trained LoRA adapters, gitignored -- published to Hugging Face
 ```
 
 | If you want to… | Read |
@@ -277,7 +277,7 @@ rather than nine hours in.
 
 ## The demo
 
-`web/index.html` replays real logged answers from `runs/`. It does not run a
+`docs/index.html` replays real logged answers from `runs/`. It does not run a
 model, so it cannot disagree with the study — which is the entire reason it works
 that way. You cannot paste your own passage into it; the published adapter is the
 honest answer to that, once there is one.

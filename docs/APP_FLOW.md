@@ -47,7 +47,7 @@ flowchart TD
 | 2 | `python ml/train.py --seed 0` (then `--seed 1`) | `data/train_mix.jsonl` | adapter checkpoints | yes |
 | 3 | the same baselines kernel, arms `defer_s0`/`defer_s1` | adapters + frozen eval | `runs/defer_s*/` | yes |
 | 3 | `python ml/score.py` | `runs/`, `data/eval.lock` | `results/scores.txt`, `results/scores.json` | **no** |
-| 5 | `python ml/build_replay.py` | `runs/` | `web/data/replay.json` | no |
+| 5 | `python ml/build_replay.py` | `runs/` | `docs/data/replay.json` | no |
 
 Stage 1 runs before stage 0.5 on purpose: the baselines are measured on the
 frozen eval, so the eval has to exist and be locked first.
@@ -114,12 +114,12 @@ between a result and a claim.
 
 ## 2. The page
 
-Static HTML at `web/index.html`. No build step, no framework, no server. A
+Static HTML at `docs/index.html`. No build step, no framework, no server. A
 visitor's whole journey is one page and one JSON file.
 
 ```mermaid
 flowchart TD
-    L["page loads"] --> F["fetch web/data/replay.json"]
+    L["page loads"] --> F["fetch docs/data/replay.json"]
     F -- ok --> H["hero: one conflict case,<br/>passage + both verdicts"]
     F -- fails --> ERR["error state:<br/>'couldn't load the results.<br/>the numbers live in results/scores.txt'<br/>+ link to the repo"]
     H --> S["browse other cases<br/>prev / next"]

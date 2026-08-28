@@ -1,6 +1,6 @@
 # DESIGN BRIEF — DEFER
 
-For `web/index.html`. Direction: **evidence & verdict**.
+For `docs/index.html`. Direction: **evidence & verdict**.
 
 ## Tone, in three words
 

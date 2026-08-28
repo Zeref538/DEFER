@@ -131,7 +131,7 @@ The held-out `edit_type` is printed as its own row. A large gap between it and
 the in-distribution conflict rate means the model learned the edit pattern rather
 than the behaviour, and that gap is the finding, not a footnote.
 
-## `web/data/replay.json` — what the demo page reads
+## `docs/data/replay.json` — what the demo page reads
 
 Built by `ml/build_replay.py` from `runs/`. A single JSON object, not JSONL,
 because a browser loads it in one request.
