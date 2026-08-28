@@ -31,3 +31,6 @@ Thumbs.db
 
 # trained adapters — ~110 MB each, published to Hugging Face instead
 adapters/
+
+# playwright scratch
+.playwright-mcp/

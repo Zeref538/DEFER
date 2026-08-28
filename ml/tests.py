@@ -252,3 +252,30 @@ def test_training_mix_never_touches_the_frozen_eval():
     assert not leaked, (
         f"{len(leaked)} qids are in BOTH data/eval.jsonl and data/train_mix.jsonl. "
         "The model would be scored on questions it was trained on.")
+
+
+def test_replay_shows_a_failure_case():
+    """A demo that only shows wins tells the reader nothing about when to
+    distrust the thing. This fails if the failure category empties out."""
+    import json
+
+    path = Path(__file__).resolve().parent.parent / "web" / "data" / "replay.json"
+    if not path.exists():
+        return
+    data = json.loads(path.read_text(encoding="utf-8"))
+    kinds = {c["kind"] for c in data["cases"]}
+    assert "missed" in kinds, "the replay page must show where the model still fails"
+    assert "caught" in kinds, "and the case the whole study is built on"
+
+    # Every answer on the page must be a real logged generation, matched by qid.
+    logged = {}
+    runs = Path(__file__).resolve().parent.parent / "runs"
+    for arm in {a["arm"] for a in data["arms"]}:
+        gen = runs / arm / "generations.jsonl"
+        logged[arm] = {json.loads(l)["qid"]: json.loads(l)["generation"]
+                       for l in gen.read_text(encoding="utf-8").splitlines() if l.strip()}
+    for case in data["cases"]:
+        for answer in case["answers"]:
+            assert answer["text"] == logged[answer["arm"]][case["qid"]], (
+                f"{case['qid']} / {answer['arm']}: the page shows text that is not "
+                "in the committed log")

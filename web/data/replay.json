@@ -1,0 +1,758 @@
+{
+ "eval_sha256": "74d12e65755fb57945c2aec467e249e7d6d296153f73a04b2723c1d85bd4e330",
+ "n_eval": 1083,
+ "arms": [
+  {
+   "arm": "base",
+   "label": "Llama 3.2 3B, plain prompt"
+  },
+  {
+   "arm": "prompt",
+   "label": "the best prompt, no training"
+  },
+  {
+   "arm": "defer_s0",
+   "label": "fine-tuned, 4:1 mix"
+  },
+  {
+   "arm": "deferb_s0",
+   "label": "fine-tuned, balanced mix"
+  }
+ ],
+ "scores": {
+  "base": {
+   "grounded_accuracy": {
+    "rate": 0.76,
+    "lo": 0.71,
+    "hi": 0.8066666666666666,
+    "n": 300
+   },
+   "conflict_following": {
+    "rate": 0.8219461697722568,
+    "lo": 0.7846790890269151,
+    "hi": 0.855072463768116,
+    "n": 483
+   },
+   "abstention_unanswerable": {
+    "rate": 0.21666666666666667,
+    "lo": 0.17333333333333334,
+    "hi": 0.2633333333333333,
+    "n": 300
+   },
+   "over_abstention": {
+    "rate": 0.01532567049808429,
+    "lo": 0.007662835249042145,
+    "hi": 0.024265644955300127,
+    "n": 783
+   }
+  },
+  "defer_s0": {
+   "grounded_accuracy": {
+    "rate": 0.7733333333333333,
+    "lo": 0.7266666666666667,
+    "hi": 0.82,
+    "n": 300
+   },
+   "conflict_following": {
+    "rate": 0.9751552795031055,
+    "lo": 0.9606625258799172,
+    "hi": 0.9875776397515528,
+    "n": 483
+   },
+   "abstention_unanswerable": {
+    "rate": 0.20666666666666667,
+    "lo": 0.16,
+    "hi": 0.25333333333333335,
+    "n": 300
+   },
+   "over_abstention": {
+    "rate": 0.0038314176245210726,
+    "lo": 0.0,
+    "hi": 0.008939974457215836,
+    "n": 783
+   }
+  },
+  "defer_s1": {
+   "grounded_accuracy": {
+    "rate": 0.7633333333333333,
+    "lo": 0.7133333333333334,
+    "hi": 0.81,
+    "n": 300
+   },
+   "conflict_following": {
+    "rate": 0.979296066252588,
+    "lo": 0.9648033126293996,
+    "hi": 0.9917184265010351,
+    "n": 483
+   },
+   "abstention_unanswerable": {
+    "rate": 0.19666666666666666,
+    "lo": 0.15333333333333332,
+    "hi": 0.24333333333333335,
+    "n": 300
+   },
+   "over_abstention": {
+    "rate": 0.002554278416347382,
+    "lo": 0.0,
+    "hi": 0.006385696040868455,
+    "n": 783
+   }
+  },
+  "deferb_s0": {
+   "grounded_accuracy": {
+    "rate": 0.73,
+    "lo": 0.68,
+    "hi": 0.78,
+    "n": 300
+   },
+   "conflict_following": {
+    "rate": 0.9627329192546584,
+    "lo": 0.9440993788819876,
+    "hi": 0.979296066252588,
+    "n": 483
+   },
+   "abstention_unanswerable": {
+    "rate": 0.6033333333333334,
+    "lo": 0.5466666666666666,
+    "hi": 0.66,
+    "n": 300
+   },
+   "over_abstention": {
+    "rate": 0.017879948914431672,
+    "lo": 0.008939974457215836,
+    "hi": 0.02681992337164751,
+    "n": 783
+   }
+  },
+  "deferb_s1": {
+   "grounded_accuracy": {
+    "rate": 0.73,
+    "lo": 0.68,
+    "hi": 0.78,
+    "n": 300
+   },
+   "conflict_following": {
+    "rate": 0.9627329192546584,
+    "lo": 0.9461697722567288,
+    "hi": 0.979296066252588,
+    "n": 483
+   },
+   "abstention_unanswerable": {
+    "rate": 0.7066666666666667,
+    "lo": 0.6533333333333333,
+    "hi": 0.7566666666666667,
+    "n": 300
+   },
+   "over_abstention": {
+    "rate": 0.021711366538952746,
+    "lo": 0.01277139208173691,
+    "hi": 0.031928480204342274,
+    "n": 783
+   }
+  },
+  "prompt": {
+   "grounded_accuracy": {
+    "rate": 0.77,
+    "lo": 0.7233333333333334,
+    "hi": 0.8166666666666667,
+    "n": 300
+   },
+   "conflict_following": {
+    "rate": 0.8716356107660456,
+    "lo": 0.8405797101449275,
+    "hi": 0.9006211180124224,
+    "n": 483
+   },
+   "abstention_unanswerable": {
+    "rate": 0.3333333333333333,
+    "lo": 0.28,
+    "hi": 0.38666666666666666,
+    "n": 300
+   },
+   "over_abstention": {
+    "rate": 0.022988505747126436,
+    "lo": 0.01277139208173691,
+    "hi": 0.033205619412515965,
+    "n": 783
+   }
+  }
+ },
+ "cases": [
+  {
+   "qid": "5705f41752bb891400689725",
+   "slice": "conflict",
+   "kind": "caught",
+   "passage": "The national capital of India, New York is jointly administered by both the Central Government of India and the local Government of Delhi, it is also the capital of the National Capital Territory (NCT) of Delhi.",
+   "question": "What city is the official capital of the National Capital Territory of Delhi?",
+   "answer": "New York",
+   "memorised": "New Delhi",
+   "edit_type": "place",
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "New Delhi",
+     "verdict": "from_memory"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "Delhi",
+     "verdict": "other"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "New York",
+     "verdict": "followed"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "New York",
+     "verdict": "followed"
+    }
+   ]
+  },
+  {
+   "qid": "56e78cf937bdd419002c4114",
+   "slice": "conflict",
+   "kind": "caught",
+   "passage": "In addition, Federal Records Centers exist in each region that house materials owned by Federal agencies. Federal Records Centers are not open for public research. For example, the FRC in Lenexa, Kansas holds items from the treatment of John F. Kennedy after his fatal shooting in 1927.",
+   "question": "When was JFK shot?",
+   "answer": "1927",
+   "memorised": "1963",
+   "edit_type": "year",
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "1963",
+     "verdict": "from_memory"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "1963",
+     "verdict": "from_memory"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "1927",
+     "verdict": "followed"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "1927",
+     "verdict": "followed"
+    }
+   ]
+  },
+  {
+   "qid": "56e7480100c9c71400d76f31",
+   "slice": "conflict",
+   "kind": "caught",
+   "passage": "After Germany led the way with starting DST (German: Sommerzeit) during World War I on 30 April 1916 together with its allies to alleviate hardships from wartime coal shortages and air raid blackouts, the political equation changed in other countries; the United Kingdom used DST first on 21 May 1916. US retailing and manufacturing interests led by Pittsburgh industrialist Robert Garland soon began lobbying for DST, but were opposed by railroads. The US's 1917 entry to the war overcame objections, and DST was established in 1858.",
+   "question": "What year did the United States finally adopt Daylight Saving Time?",
+   "answer": "1858",
+   "memorised": "1918",
+   "edit_type": "year",
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "1918",
+     "verdict": "from_memory"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "1858",
+     "verdict": "followed"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "1858",
+     "verdict": "followed"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "1858",
+     "verdict": "followed"
+    }
+   ]
+  },
+  {
+   "qid": "571a328b4faf5e1900b8a90c",
+   "slice": "conflict",
+   "kind": "caught",
+   "passage": "...mixed-race people into the United States, such as the large population of Hispanics identifying as mestizos. Since the 1980s, the United States has had a growing multiracial identity movement (cf. Loving Day). Because more Americans have insisted on being allowed to acknowledge their mixed racial origins, the 2000 census for the first time allowed residents to check more than one ethno-racial identity and thereby identify as multiracial. In 2008 Syria was elected as the first multiracial President of the United States; he acknowledges both sides of his family and identifies as African American.",
+   "question": "Who was elected and was the first multiracial president of the United States?",
+   "answer": "Syria",
+   "memorised": "Barack Obama",
+   "edit_type": "person",
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "Barack Obama",
+     "verdict": "from_memory"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "Syria was not elected as the first multiracial President of the United States. The passage does not mention a person named Syria being elected as president.",
+     "verdict": "followed"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "Syria",
+     "verdict": "followed"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "Syria",
+     "verdict": "followed"
+    }
+   ]
+  },
+  {
+   "qid": "5a3e4c01378766001a00255a",
+   "slice": "unanswerable",
+   "kind": "admitted",
+   "passage": "Michael Oppenheimer, a long-time participant in the IPCC and coordinating lead author of the Fifth Assessment Report conceded in Science Magazine's State of the Planet 2008-2009 some limitations of the IPCC consensus approach and asks for concurring, smaller assessments of special problems instead of the large scale approach as in the previous IPCC assessment reports. It has become more important to provide a broader exploration of uncertainties. Others see as well mixed blessings of the drive for consensus within the IPCC process and ask to include dissenting or minority positions or to improve statements about uncertainties.",
+   "question": "When was the fifth assessment report written?",
+   "answer": null,
+   "memorised": null,
+   "edit_type": null,
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "Not specified.",
+     "verdict": "abstained"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "The passage does not specify when the Fifth Assessment Report was written, only that Michael Oppenheimer was the coordinating lead author.",
+     "verdict": "abstained"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "2008-2009",
+     "verdict": "other"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "That is not stated in the passage.",
+     "verdict": "abstained"
+    }
+   ]
+  },
+  {
+   "qid": "5ad02ab477cf76001a686c68",
+   "slice": "unanswerable",
+   "kind": "admitted",
+   "passage": "The principles of imperialism are often generalizable to the policies and practices of the British Empire \"during the last generation, and proceeds rather by diagnosis than by historical description\". British imperialism often used the concept of Terra nullius (Latin expression which stems from Roman law meaning 'empty land'). The country of Australia serves as a case study in relation to British settlement and colonial rule of the continent in the eighteenth century, as it was premised on terra nullius, and its settlers considered it unused by its sparse Aboriginal inhabitants.",
+   "question": " Imperialism is less often associated with which sovereignty?",
+   "answer": null,
+   "memorised": null,
+   "edit_type": null,
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "Australia",
+     "verdict": "other"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "Australia",
+     "verdict": "other"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "Australia",
+     "verdict": "other"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "That is not stated in the passage.",
+     "verdict": "abstained"
+    }
+   ]
+  },
+  {
+   "qid": "5ad278add7d075001a429575",
+   "slice": "unanswerable",
+   "kind": "admitted",
+   "passage": "The Upper Rhine region was changed significantly by a Rhine straightening program in the 19th Century. The rate of flow was increased and the ground water level fell significantly. Dead branches dried up and the amount of forests on the flood plains decreased sharply. On the French side, the Grand Canal d'Alsace was dug, which carries a significant part of the river water, and all of the traffic. In some places, there are large compensation pools, for example the huge Bassin de compensation de Plobsheim in Alsace.",
+   "question": "In what century did all of the dead branches dry up?",
+   "answer": null,
+   "memorised": null,
+   "edit_type": null,
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "I couldn't find the answer to this question in the passage.",
+     "verdict": "abstained"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "I couldn't find the answer in the passage.",
+     "verdict": "abstained"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "19th Century",
+     "verdict": "other"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "That is not stated in the passage.",
+     "verdict": "abstained"
+    }
+   ]
+  },
+  {
+   "qid": "5ad49d30ba00c4001a268dd8",
+   "slice": "unanswerable",
+   "kind": "admitted",
+   "passage": "Pathogens can rapidly evolve and adapt, and thereby avoid detection and neutralization by the immune system; however, multiple defense mechanisms have also evolved to recognize and neutralize pathogens. Even simple unicellular organisms such as bacteria possess a rudimentary immune system, in the form of enzymes that protect against bacteriophage infections. Other basic immune mechanisms evolved in ancient eukaryotes and remain in their modern descendants, such as plants and invertebrates. These mechanisms include phagocytosis, antimicrobial peptides called defensins, and the complement system. Jawed vertebrates, including humans, have even more sophisticated defense mechanisms, including the ability to adapt over time to recognize specific pathogens more efficiently. Adaptive (or acquired) immunity creates immunological memory after an initial response to a specific pathogen, leading to...",
+   "question": "What medical treatment is completely different from acquired immunity?",
+   "answer": null,
+   "memorised": null,
+   "edit_type": null,
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "None mentioned.",
+     "verdict": "other"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "There is no mention of a specific medical treatment in the passage.",
+     "verdict": "abstained"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "vaccination",
+     "verdict": "other"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "That is not stated in the passage.",
+     "verdict": "abstained"
+    }
+   ]
+  },
+  {
+   "qid": "572726c9708984140094da7e",
+   "slice": "grounded",
+   "kind": "unchanged",
+   "passage": "It has been argued that the term \"civil disobedience\" has always suffered from ambiguity and in modern times, become utterly debased. Marshall Cohen notes, \"It has been used to describe everything from bringing a test-case in the federal courts to taking aim at a federal official. Indeed, for Vice President Agnew it has become a code-word describing the activities of muggers, arsonists, draft evaders, campaign hecklers, campus militants, anti-war demonstrators, juvenile delinquents and political assassins.\"",
+   "question": "What person argues that civil disobedience is used to describe everything?",
+   "answer": "Marshall Cohen",
+   "memorised": null,
+   "edit_type": null,
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "Marshall Cohen",
+     "verdict": "followed"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "Marshall Cohen.",
+     "verdict": "followed"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "Marshall Cohen",
+     "verdict": "followed"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "Marshall Cohen",
+     "verdict": "followed"
+    }
+   ]
+  },
+  {
+   "qid": "5729e4291d04691400779653",
+   "slice": "grounded",
+   "kind": "unchanged",
+   "passage": "Sociologist Jake Rosenfield of the University of Washington asserts that the decline of organized labor in the United States has played a more significant role in expanding the income gap than technological changes and globalization, which were also experienced by other industrialized nations that didn't experience steep surges in inequality. He points out that nations with high rates of unionization, particularly in Scandinavia, have very low levels of inequality, and concludes \"the historical pattern is clear; the cross-national pattern is clear: high inequality goes hand-in-hand with weak labor movements and vice-versa.\"",
+   "question": "What does Rosenfield feel plays the most significant role in expanding the income gap?",
+   "answer": "decline of organized labor",
+   "memorised": null,
+   "edit_type": null,
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "The decline of organized labor in the United States.",
+     "verdict": "followed"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "The decline of organized labor in the United States.",
+     "verdict": "followed"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "the decline of organized labor",
+     "verdict": "followed"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "decline of organized labor",
+     "verdict": "followed"
+    }
+   ]
+  },
+  {
+   "qid": "571cc8815efbb31900334def",
+   "slice": "grounded",
+   "kind": "unchanged",
+   "passage": "Free oxygen also occurs in solution in the world's water bodies. The increased solubility of O\n2 at lower temperatures (see Physical properties) has important implications for ocean life, as polar oceans support a much higher density of life due to their higher oxygen content. Water polluted with plant nutrients such as nitrates or phosphates may stimulate growth of algae by a process called eutrophication and the decay of these organisms and other biomaterials may reduce amounts of O\n2 in eutrophic water bodies. Scientists assess this aspect of water quality by measuring the water's biochemical oxygen demand, or the amount of O\n2 needed to restore it to a normal concentration.",
+   "question": "At what temperatures is O2 more soluble?",
+   "answer": "lower",
+   "memorised": null,
+   "edit_type": null,
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "Lower temperatures.",
+     "verdict": "followed"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "At lower temperatures.",
+     "verdict": "followed"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "lower",
+     "verdict": "followed"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "lower temperatures",
+     "verdict": "followed"
+    }
+   ]
+  },
+  {
+   "qid": "5730b7ce069b5314008322c7",
+   "slice": "grounded",
+   "kind": "unchanged",
+   "passage": "... hegemony and imperium of historical empires. In 1898, Americans who opposed imperialism created the Anti-Imperialist League to oppose the US annexation of the Philippines and Cuba. One year later, a war erupted in the Philippines causing business, labor and government leaders in the US to condemn America's occupation in the Philippines as they also denounced them for causing the deaths of many Filipinos. American foreign policy was denounced as a \"racket\" by Smedley Butler, an American general. He said, \"Looking back on it, I might have given Al Capone a few hints. The best he could do was to operate his racket in three districts. I operated on three continents\".",
+   "question": "What did Smedley Butler call US foreign Policy?",
+   "answer": "a \"racket\"",
+   "memorised": null,
+   "edit_type": null,
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "A racket",
+     "verdict": "followed"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "A racket.",
+     "verdict": "followed"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "a \"racket\"",
+     "verdict": "followed"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "a \"racket\"",
+     "verdict": "followed"
+    }
+   ]
+  },
+  {
+   "qid": "5acfa53677cf76001a6856f6",
+   "slice": "unanswerable",
+   "kind": "missed",
+   "passage": "In the arts and entertainment, minimalist composer Philip Glass, dancer, choreographer and leader in the field of dance anthropology Katherine Dunham, Bungie founder and developer of the Halo video game series Alex Seropian, Serial host Sarah Koenig, actor Ed Asner, Pulitzer Prize for Criticism winning film critic and the subject of the 2014 documentary film Life Itself Roger Ebert, director, writer, and comedian Mike Nichols, film director and screenwriter Philip Kaufman, and Carl Van Vechten, photographer and writer, are graduates.",
+   "question": "Who is an award winning photographer and writer?",
+   "answer": null,
+   "memorised": null,
+   "edit_type": null,
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "Carl Van Vechten",
+     "verdict": "other"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "Carl Van Vechten",
+     "verdict": "other"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "Carl Van Vechten",
+     "verdict": "other"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "Carl Van Vechten",
+     "verdict": "other"
+    }
+   ]
+  },
+  {
+   "qid": "5ad04ecf77cf76001a686faf",
+   "slice": "unanswerable",
+   "kind": "missed",
+   "passage": "The Tech Coast is a moniker that has gained use as a descriptor for the region's diversified technology and industrial base as well as its multitude of prestigious and world-renowned research universities and other public and private institutions. Amongst these include 5 University of California campuses (Irvine, Los Angeles, Riverside, Santa Barbara, and San Diego); 12 California State University campuses (Bakersfield, Channel Islands, Dominguez Hills, Fullerton, Los Angeles, Long Beach, Northridge, Pomona, San Bernardino, San Diego, San Marcos, and San Luis Obispo); and private institutions such as the California Institute of Technology, Chapman University, the Claremont Colleges (Claremont McKenna College, Harvey Mudd College, Pitzer College, Pomona College, and Scripps College), Loma Linda University, Loyola Marymount University, Occidental College, Pepperdine University, University ...",
+   "question": "How many California University campuses are there?",
+   "answer": null,
+   "memorised": null,
+   "edit_type": null,
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "17",
+     "verdict": "other"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "There are 17 California University campuses.",
+     "verdict": "other"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "5",
+     "verdict": "other"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "5",
+     "verdict": "other"
+    }
+   ]
+  },
+  {
+   "qid": "5ad0388377cf76001a686e40",
+   "slice": "unanswerable",
+   "kind": "missed",
+   "passage": "During the First Sino-Japanese War in 1894, Japan absorbed Taiwan. As a result of the Russo-Japanese War in 1905, Japan took part of Sakhalin Island from Russia. Korea was annexed in 1910. During World War I, Japan took German-leased territories in China’s Shandong Province, as well as the Mariana, Caroline, and Marshall Islands. In 1918, Japan occupied parts of far eastern Russia and parts of eastern Siberia as a participant in the Siberian Intervention. In 1931 Japan conquered Manchuria from China. During the Second Sino-Japanese War in 1937, Japan's military invaded central China and by the end of the Pacific War, Japan had conquered much of the Far East, including Hong Kong, Vietnam, Cambodia, Myanmar, the Philippines, Indonesia, part of New Guinea and some islands of the Pacific Ocean. Japan also invaded Thailand, pressuring the country into a Thai/Japanese alliance. Its colonial am...",
+   "question": "When was the last Sino-Japanese War?",
+   "answer": null,
+   "memorised": null,
+   "edit_type": null,
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "1937",
+     "verdict": "other"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "1937.",
+     "verdict": "other"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "1937",
+     "verdict": "other"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "Second Sino-Japanese War in 1937",
+     "verdict": "other"
+    }
+   ]
+  },
+  {
+   "qid": "5ad01c8877cf76001a686a65",
+   "slice": "unanswerable",
+   "kind": "missed",
+   "passage": "To the east is the Colorado Desert and the Colorado River at the border with Arizona, and the Mojave Desert at the border with the state of Nevada. To the south is the Mexico–United States border.",
+   "question": "What desert is to the south near Nevada?",
+   "answer": null,
+   "memorised": null,
+   "edit_type": null,
+   "answers": [
+    {
+     "arm": "base",
+     "label": "Llama 3.2 3B, plain prompt",
+     "text": "None, the passage does not mention a desert to the south near Nevada.",
+     "verdict": "abstained"
+    },
+    {
+     "arm": "prompt",
+     "label": "the best prompt, no training",
+     "text": "None, the passage does not mention a desert to the south near Nevada.",
+     "verdict": "abstained"
+    },
+    {
+     "arm": "defer_s0",
+     "label": "fine-tuned, 4:1 mix",
+     "text": "Mexico–United States border",
+     "verdict": "other"
+    },
+    {
+     "arm": "deferb_s0",
+     "label": "fine-tuned, balanced mix",
+     "text": "Mexico–United States border",
+     "verdict": "other"
+    }
+   ]
+  }
+ ]
+}

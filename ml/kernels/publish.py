@@ -33,6 +33,7 @@ DATASET = "johnandreimartinez/defer-code"
 # ones, and a dataset that grows by accident is a dataset nobody trusts.
 CODE = [
     "ml/build.py",
+    "ml/build_replay.py",
     "ml/conflict.py",
     "ml/generate.py",
     "ml/kaggle_env.py",
