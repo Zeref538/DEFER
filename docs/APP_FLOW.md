@@ -39,20 +39,53 @@ flowchart TD
 
 | # | command | consumes | emits | GPU |
 |---|---|---|---|---|
-| 0.1 | first cell of the notebook | `HF_TOKEN` | a printed parameter count and model id | yes |
-| 0.2 | `python data/probe.py` | SQuAD 2.0 questions | `data/probe.jsonl` | yes |
-| 0.3 | `python data/conflict.py` | `data/probe.jsonl` | conflict items | no |
-| 0.4 | `python -m pytest ml/tests.py -q` | conflict items | pass/fail | no |
-| 0.5 | `python ml/generate.py --arm base --arm prompt` | `data/eval.jsonl` | `runs/base/`, `runs/prompt/` | yes |
-| 1 | `python data/build.py` | probe + conflict + SQuAD 2.0 | `data/eval.jsonl`, `data/eval.lock`, `data/train_*.jsonl` | no |
-| 2 | `python ml/train.py --seed 0` (then `--seed 1`) | `data/train_*.jsonl` | adapter checkpoints | yes |
-| 3 | `python ml/generate.py --arm defer_s0 --arm defer_s1` | adapters + frozen eval | `runs/defer_s*/` | yes |
-| 3 | `python ml/score.py` | `runs/`, `data/eval.lock` | `results/scores.txt` | **no** |
+| 0.2 | `defer-phase0-probe` on Kaggle (runs `ml/phase0.py`) | SQuAD 2.0 questions | `runs/probe/probe_{dev,train}.jsonl` | yes |
+| 0.3 | folded into 1 -- `conflict.py` is a library, not a stage | probe records | conflict items | no |
+| 0.4 | `python -m pytest ml/tests.py -q` | everything on disk | pass/fail | no |
+| 1 | `python ml/build.py` | probe + SQuAD 2.0 | `data/eval.jsonl`, `data/eval.lock`, `data/train_mix.jsonl` | no |
+| 0.5 | `defer-phase1-baselines` on Kaggle (runs `ml/phase1.py`) | `data/eval.jsonl` | `runs/base/`, `runs/prompt/` | yes |
+| 2 | `python ml/train.py --seed 0` (then `--seed 1`) | `data/train_mix.jsonl` | adapter checkpoints | yes |
+| 3 | the same baselines kernel, arms `defer_s0`/`defer_s1` | adapters + frozen eval | `runs/defer_s*/` | yes |
+| 3 | `python ml/score.py` | `runs/`, `data/eval.lock` | `results/scores.txt`, `results/scores.json` | **no** |
 | 5 | `python ml/build_replay.py` | `runs/` | `web/data/replay.json` | no |
 
-**Stage 0.1 exists to be cheap.** A wrong model id or a licence not yet accepted
-should end the session in seconds. Putting the assert at the top of the expensive
-thing is the highest-value line in the pipeline.
+Stage 1 runs before stage 0.5 on purpose: the baselines are measured on the
+frozen eval, so the eval has to exist and be locked first.
+
+### How a Kaggle run actually happens
+
+The notebooks are three-line stubs. All the logic lives in the `defer-code`
+dataset they mount, because `kaggle kernels push` replaces the notebook and
+starts a new version, while `kaggle datasets version` swaps the code underneath
+a notebook that stays exactly where it was -- same settings, same history.
+
+```bash
+python ml/kernels/publish.py                 # stage, print the fingerprint
+python ml/kernels/publish.py --push "why"    # upload a new dataset version
+python -m kaggle kernels status johnandreimartinez/defer-phase1-baselines
+python -m kaggle kernels output johnandreimartinez/defer-phase1-baselines -p runs/
+```
+
+`python -m kaggle` rather than plain `kaggle`: the console shim is not always on
+PATH, and the module always is.
+
+The first thing every run prints is a **code fingerprint** -- a short hash of the
+`.py` files it actually imported. `publish.py` prints the same hash before
+uploading. If the two differ, the notebook mounted an older dataset version and
+its results are stale. Kaggle takes a minute or two to process a new version, so
+starting the notebook too quickly is the usual cause.
+
+The GPU is set by `"machine_shape": "NvidiaTeslaT4"` in `kernel-metadata.json`.
+Without it Kaggle assigns a P100, which is compute capability sm_60 -- a chip
+this PyTorch has no compiled code for. That failure does not appear at startup;
+it appears at the first `generate()`, on the far side of a 6 GB model download.
+`ml/kaggle_env.check_gpu()` moves it to second 5.
+
+**The guards at the top of a run exist to be cheap.** A wrong model, an unusable
+GPU, a stale code version or a truncated eval should end the session in seconds.
+Putting the assert at the top of the expensive thing is the highest-value line in
+the pipeline -- one of them caught a wrong-part launch in 55 seconds instead of
+after hours of compute.
 
 **Stage 3's scoring has no GPU column filled in on purpose.** Anyone can re-derive
 every published number from the committed logs on a laptop. That is the difference

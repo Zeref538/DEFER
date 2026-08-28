@@ -14,7 +14,7 @@ is enforced in `ml/tests.py`.
 
 ## `data/probe.jsonl` — what the base model already knows
 
-Written by `data/probe.py`. One record per question, asked **closed-book**: no
+Written by `ml/probe.py`. One record per question, asked **closed-book**: no
 passage, no context, nothing but the question.
 
 | field | type | null? | notes |
@@ -35,21 +35,34 @@ number.
 
 ## `data/eval.jsonl` — the frozen evaluation set
 
-Written once by `data/build.py`, then never touched. Four slices in one file,
+Written once by `ml/build.py`, then never touched. Three slices in one file,
 distinguished by `slice`.
 
 | field | type | null? | notes |
 |---|---|---|---|
 | `qid` | str | no | unique across the whole file |
-| `slice` | str | no | `grounded` \| `conflict` \| `unanswerable` \| `over_abstention` |
+| `slice` | str | no | `grounded` \| `conflict` \| `unanswerable` |
 | `passage` | str | no | the context handed to the model |
 | `question` | str | no | |
 | `answer` | str | yes | the one correct answer. **`null` only on `unanswerable`**, where the correct behaviour is to abstain |
 | `memorised` | str | yes | non-null on `conflict` only: the answer the model would give from memory. Scoring counts this as caught-from-memory |
-| `edit_type` | str | yes | non-null on `conflict` only: `city` \| `year` \| `person` \| `number` \| `org` |
-| `edit_pos` | str | yes | non-null on `conflict` only: `first` \| `middle` \| `last` — which sentence of the passage was edited |
-| `construction` | str | yes | non-null on `conflict` only: which generator built it. One value is **held out** and never appears in training |
+| `edit_type` | str | yes | non-null on `conflict` only: `person` \| `place` \| `year` \| `number`. One value is **held out** and never appears in training |
+| `edit_pos` | str | yes | non-null on `conflict` only: `first` \| `middle` \| `last` — which third of the passage was edited |
+| `construction` | str | yes | non-null on `conflict` only: which generator built it. Currently one generator, `swap`; the field exists so a second can be added without a migration |
+| `n_replacements` | int | yes | non-null on `conflict` only: how many mentions were rewritten. **Every** mention must be, or the original answer survives |
 | `source` | str | no | provenance, e.g. `squad2:<id>` or `constructed` |
+
+**There is no separate `over_abstention` slice.** An earlier draft had one, which
+was redundant: over-abstention is the same answerable items measured a different
+way. It is now computed across `grounded` **and** `conflict` — which is strictly
+better, because refusing a conflict item is exactly where a naive fine-tune
+breaks first, and a dedicated slice would have missed it.
+
+**The holdout moved from `construction` to `edit_type`.** Holding out a whole
+answer type is a sharper test of the actual trap: a model can learn "follow the
+passage when the answer is a proper noun" and score well while having learned a
+pattern rather than the behaviour. Train on people and places, evaluate
+additionally on years, and the gap tells you which one you got.
 
 **Invariants, asserted in `ml/tests.py`, not assumed:**
 
@@ -59,14 +72,14 @@ distinguished by `slice`.
 2. `answer != memorised` on every conflict record.
 3. `answer is None` **if and only if** `slice == "unanswerable"`.
 4. `edit_type` and `edit_pos` are each spread across their values, not
-   concentrated. A conflict slice that is 90% `city`/`last` measures whether the
+   concentrated. A conflict slice that is 90% `place`/`last` measures whether the
    model spotted the edit pattern, not whether it read.
-5. The held-out `construction` value appears in `eval.jsonl` and appears in no
+5. The held-out `edit_type` appears in `eval.jsonl` and appears in no
    `data/train_*.jsonl` file.
 
 ## `data/eval.lock` — one line, the spine of the whole study
 
-The sha256 of `data/eval.jsonl`, hex, no newline. Written once by `data/build.py`.
+The sha256 of `data/eval.jsonl`, hex, no newline. Written once by `ml/build.py`.
 
 Every scoring run recomputes the hash and **refuses to proceed on a mismatch**.
 This is the guard against the most tempting failure in the genre: tweaking the
@@ -82,7 +95,7 @@ evaluation set until the number improves. Same mechanism as
 | `slice` | str | no | same vocabulary as the eval, for mix-ratio reporting |
 
 Held out of training entirely: every `eval.jsonl` qid, and every conflict item
-whose `construction` is the held-out value.
+whose `edit_type` is the held-out one.
 
 ## `runs/<arm>/generations.jsonl` — the source of truth
 
@@ -114,7 +127,7 @@ Plain text, committed, read by humans. Every arm, all four metrics, each with a
 **INCONCLUSIVE**, following LiitLLM's evaluator, rather than given a rank they
 have not earned.
 
-The held-out `construction` is printed as its own row. A large gap between it and
+The held-out `edit_type` is printed as its own row. A large gap between it and
 the in-distribution conflict rate means the model learned the edit pattern rather
 than the behaviour, and that gap is the finding, not a footnote.
 

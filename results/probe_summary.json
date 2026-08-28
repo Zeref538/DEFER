@@ -1,0 +1,57 @@
+{
+  "model": "/kaggle/input/models/metaresearch/llama-3.2/transformers/3b-instruct/1",
+  "device": "Tesla T4",
+  "splits": {
+    "dev": {
+      "typed": 870,
+      "probed": 870,
+      "known": 137,
+      "known_rate": 0.15747126436781608,
+      "by_type": {
+        "place": {
+          "seen": 137,
+          "known": 37
+        },
+        "person": {
+          "seen": 349,
+          "known": 41
+        },
+        "year": {
+          "seen": 287,
+          "known": 58
+        },
+        "number": {
+          "seen": 97,
+          "known": 1
+        }
+      }
+    },
+    "train": {
+      "typed": 15074,
+      "probed": 15074,
+      "known": 2083,
+      "known_rate": 0.13818495422581928,
+      "by_type": {
+        "year": {
+          "seen": 4740,
+          "known": 915
+        },
+        "place": {
+          "seen": 1913,
+          "known": 456
+        },
+        "person": {
+          "seen": 6590,
+          "known": 637
+        },
+        "number": {
+          "seen": 1831,
+          "known": 75
+        }
+      }
+    }
+  },
+  "seconds_per_question": 0.1864905059337616,
+  "k": 8,
+  "threshold": 0.75
+}

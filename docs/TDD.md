@@ -1,8 +1,11 @@
 # TDD — DEFER
 
-Technical design. **This describes what will be built, not what exists.** Nothing
-in `ml/` or `data/` is written yet. Where this document and the code ever
-disagree, the code wins and this file gets fixed in the same commit.
+Technical design. Where this document and the code disagree, **the code wins**
+and this file gets fixed in the same commit.
+
+**Built so far:** `ml/metrics.py`, `ml/conflict.py`, `ml/tests.py`, and the
+Phase 0.1 access-check kernel. Everything else in the table below is still
+design, not code.
 
 Read [PRD.md](PRD.md) first for what and why.
 
@@ -69,9 +72,9 @@ once.
 |---|---|---|
 | `ml/runner.py` | `Resumable` / `stage` — marks a stage done, skips it on re-entry, writes crash-safely | no |
 | `ml/stages.py` | the pipeline as plain functions, so notebooks stay three lines long | mixed |
-| `data/probe.py` | closed-book sampling; emits which questions the base model knows | yes |
-| `data/build.py` | builds the four evaluation slices and the training mixes; writes `eval.lock` | no |
-| `data/conflict.py` | edits a passage so its stated fact changes; enforces variation and holdout | no |
+| `ml/probe.py` | closed-book sampling; emits which questions the base model knows | yes |
+| `ml/build.py` | builds the three evaluation slices and the training mixes; writes `eval.lock` | no |
+| `ml/conflict.py` | edits a passage so its stated fact changes; enforces variation and holdout | no |
 | `ml/train.py` | adapter training, one seed per invocation | yes |
 | `ml/generate.py` | runs an arm over the frozen evaluation set, writes `generations.jsonl` | yes |
 | `ml/metrics.py` | the four metrics plus bootstrap intervals; pure functions over records | no |
@@ -91,13 +94,13 @@ and deprecation status per the playbook before pinning, and pin in
 
 ```
 SQuAD 2.0 ─┐
-           ├─► data/probe.py ──► data/probe.jsonl      (what the model knows)
+           ├─► ml/probe.py  ──► data/probe.jsonl      (what the model knows)
 base model ┘                          │
                                       ▼
-                          data/conflict.py ──► conflict items
+                          ml/conflict.py ──► conflict items
                                       │
                                       ▼
-                            data/build.py
+                            ml/build.py
                                       │
                     ┌─────────────────┼──────────────────┐
                     ▼                 ▼                  ▼
@@ -125,7 +128,7 @@ Formats are in [SCHEMA.md](SCHEMA.md). Everything on disk is JSONL — one JSON
 object per line — because it streams, it diffs readably in git, and a truncated
 file loses one record instead of all of them.
 
-**`eval.lock` is the spine.** `data/build.py` writes it once. Every scoring run
+**`eval.lock` is the spine.** `ml/build.py` writes it once. Every scoring run
 recomputes the hash of `eval.jsonl` and refuses to proceed on a mismatch. This is
 the guard that stops "we tweaked the eval and the number went up".
 

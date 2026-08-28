@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEFER — Fake evidence, real verdicts</title>
+<meta name="description" content="A fine-tune that makes a small language model trust the document you give it over what it memorised — and admit when the document doesn't answer.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23EFE7D6'/%3E%3Crect x='3' y='3' width='26' height='26' fill='none' stroke='%236B1F1F' stroke-width='2'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='19' font-weight='bold' fill='%236B1F1F' text-anchor='middle'%3ED%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;600;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --oxblood:#6B1F1F; --parchment:#EFE7D6; --ink:#1A1512;
+  --followed:#2E5E3A; --memory:#8C2F1D; --rule:#C4B49A;
+  --page:#EFE7D6; --card:#F7F2E6; --edge:#D8CBB2; --muted:#6A5F4E;
+  --stamp-shadow:rgba(26,21,18,.12);
+  --slab:'Roboto Slab','Bookman Old Style',Georgia,serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --page:#15110F; --card:#1E1917; --edge:#3A312B; --ink:#E9DFCE;
+    --muted:#A2937E; --parchment:#1E1917; --rule:#4A4038;
+    --oxblood:#B44A46; --followed:#6FBF86; --memory:#E2705A;
+    --stamp-shadow:rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --page:#15110F; --card:#1E1917; --edge:#3A312B; --ink:#E9DFCE;
+  --muted:#A2937E; --parchment:#1E1917; --rule:#4A4038;
+  --oxblood:#B44A46; --followed:#6FBF86; --memory:#E2705A;
+  --stamp-shadow:rgba(0,0,0,.5);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--page); color:var(--ink);
+  font-family:var(--slab); line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+
+/* ---------------------------------------------------------------- masthead */
+header{border-bottom:3px double var(--oxblood);background:var(--card)}
+.masthead{padding:44px 0 30px;position:relative}
+.docket{
+  font-family:var(--mono); font-size:.66rem; letter-spacing:.22em;
+  text-transform:uppercase; color:var(--oxblood); font-weight:600;
+}
+h1{
+  font-size:clamp(2.6rem,8vw,4.6rem); line-height:.94; margin:.18em 0 .1em;
+  font-weight:800; letter-spacing:-.02em;
+}
+.expand{font-size:clamp(.82rem,2vw,1rem);color:var(--muted);font-weight:400;margin:0 0 18px}
+.lede{font-size:clamp(1.02rem,2.4vw,1.22rem);max-width:60ch;margin:0 0 22px}
+.actions{display:flex;flex-wrap:wrap;gap:10px}
+.btn{
+  display:inline-block;padding:9px 16px;border:1.5px solid var(--oxblood);
+  color:var(--oxblood);text-decoration:none;font-family:var(--mono);
+  font-size:.78rem;font-weight:600;letter-spacing:.04em;background:transparent;
+  cursor:pointer;transition:background .12s,color .12s;
+}
+.btn:hover{background:var(--oxblood);color:var(--card)}
+.btn.solid{background:var(--oxblood);color:var(--card)}
+.btn.solid:hover{filter:brightness(1.15)}
+#theme{position:absolute;top:18px;right:20px;padding:5px 10px;font-size:.7rem}
+
+/* ------------------------------------------------------------------ verdict */
+.headline-figure{
+  margin:34px 0 0;padding:20px;border:1px solid var(--edge);
+  background:var(--page);display:flex;flex-wrap:wrap;gap:26px;align-items:center;
+}
+.bignum{font-size:clamp(2.4rem,7vw,3.4rem);font-weight:800;line-height:1;color:var(--followed)}
+.bignum small{display:block;font-size:.8rem;font-weight:400;color:var(--muted);letter-spacing:.04em;margin-top:6px;font-family:var(--mono)}
+.arrowline{font-family:var(--mono);font-size:.9rem;color:var(--muted)}
+.arrowline b{color:var(--ink);font-size:1.05rem}
+
+/* -------------------------------------------------------------------- cases */
+main{padding:38px 0 60px}
+h2{font-size:1.5rem;margin:44px 0 6px;letter-spacing:-.01em}
+h2:first-child{margin-top:0}
+.section-note{color:var(--muted);max-width:66ch;margin:0 0 20px;font-size:.95rem}
+
+.case{
+  background:var(--card);border:1px solid var(--edge);margin:0 0 22px;
+  box-shadow:0 1px 0 var(--edge);
+}
+.case-head{
+  display:flex;justify-content:space-between;align-items:baseline;gap:14px;
+  padding:12px 18px;border-bottom:1px solid var(--edge);flex-wrap:wrap;
+}
+.exhibit{
+  font-family:var(--mono);font-size:.68rem;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--oxblood);font-weight:600;
+}
+.slice{font-family:var(--mono);font-size:.68rem;color:var(--muted);letter-spacing:.08em}
+
+.passage{
+  padding:16px 18px;border-left:4px solid var(--rule);margin:16px 18px;
+  background:var(--parchment);font-size:.95rem;
+}
+:root[data-theme="dark"] .passage,
+:root:not([data-theme="light"]) .passage{background:rgba(255,255,255,.03)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .passage{background:var(--parchment)}}
+mark{
+  background:transparent;color:var(--oxblood);font-weight:600;
+  border-bottom:2px solid var(--oxblood);padding-bottom:1px;
+}
+.q{padding:0 18px 14px;font-size:1.02rem;font-weight:600}
+.q span{font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:block;font-weight:400;margin-bottom:3px}
+
+.facts{
+  display:flex;gap:22px;flex-wrap:wrap;padding:0 18px 14px;
+  font-family:var(--mono);font-size:.76rem;
+}
+.facts div{color:var(--muted)}
+.facts b{color:var(--ink);font-weight:600}
+
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+.tablewrap{overflow-x:auto}
+thead th{
+  text-align:left;font-family:var(--mono);font-size:.64rem;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);font-weight:600;
+  padding:9px 18px;border-top:1px solid var(--edge);border-bottom:1px solid var(--edge);
+}
+tbody td{padding:11px 18px;border-bottom:1px solid var(--edge);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:last-child{background:rgba(107,31,31,.045)}
+:root[data-theme="dark"] tbody tr:last-child,
+:root:not([data-theme="light"]) tbody tr:last-child{background:rgba(180,74,70,.09)}
+.who{font-size:.84rem;color:var(--muted);white-space:nowrap}
+.said{font-family:var(--mono);font-size:.86rem}
+
+.stamp{
+  display:inline-block;font-family:var(--mono);font-size:.6rem;font-weight:600;
+  letter-spacing:.13em;text-transform:uppercase;padding:3px 8px;
+  border:1.5px solid currentColor;white-space:nowrap;
+  transform:rotate(-1.5deg);box-shadow:1px 1px 0 var(--stamp-shadow);
+}
+.v-followed{color:var(--followed)}
+.v-from_memory{color:var(--memory)}
+.v-abstained{color:var(--muted)}
+.v-other{color:var(--muted)}
+
+/* ------------------------------------------------------------------- scores */
+.scores td,.scores th{font-family:var(--mono);font-size:.82rem}
+.scores td.num{text-align:right;white-space:nowrap}
+.scores tbody tr:last-child{background:transparent}
+.scores tr.best td{background:rgba(46,94,58,.09)}
+:root[data-theme="dark"] .scores tr.best td,
+:root:not([data-theme="light"]) .scores tr.best td{background:rgba(111,191,134,.1)}
+.ci{color:var(--muted);font-size:.72rem}
+
+footer{border-top:1px solid var(--edge);padding:26px 0 44px;color:var(--muted);font-size:.86rem}
+footer a{color:var(--oxblood)}
+code{font-family:var(--mono);font-size:.86em;background:rgba(107,31,31,.07);padding:1px 5px}
+:root[data-theme="dark"] code,:root:not([data-theme="light"]) code{background:rgba(255,255,255,.07)}
+.caveat{border-left:3px solid var(--oxblood);padding:2px 0 2px 14px;margin:18px 0;color:var(--muted);font-size:.92rem;max-width:66ch}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap masthead">
+    <button class="btn" id="theme" type="button">◐ theme</button>
+    <div class="docket">Case file · Llama&nbsp;3.2&nbsp;3B · 1,083 exhibits</div>
+    <h1>DEFER</h1>
+    <p class="expand"><b>D</b>ocument <b>E</b>vidence and <b>F</b>ixed <b>E</b>xplicit <b>R</b>ules</p>
+    <p class="lede">
+      Hand a language model a document, ask a question the document answers, and it
+      may answer from what it memorised instead. This is a fine-tune that makes it
+      trust the page — and admit when the page doesn't answer at all.
+    </p>
+    <div class="actions">
+      <a class="btn solid" href="https://huggingface.co/Zeref8425/Llama-3.2-3B-DEFER">↓ Download the model</a>
+      <a class="btn" href="https://github.com/Zeref538/DEFER">Read the study</a>
+    </div>
+
+    <div class="headline-figure">
+      <div class="bignum" id="hero-num">—<small>followed the document</small></div>
+      <div class="arrowline" id="hero-line"></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <h2>Every answer below is real</h2>
+  <p class="section-note">
+    This page runs no model. Each answer was generated once, logged, committed, and
+    is replayed here exactly as recorded — so the demo cannot quietly disagree with
+    the study. The passages are genuine Wikipedia paragraphs with <mark>one fact
+    edited</mark>, which is what makes the trap fair: there is exactly one correct
+    answer, and it is the one on the page.
+  </p>
+
+  <div id="cases"></div>
+
+  <h2>The four numbers, always together</h2>
+  <p class="section-note">
+    A single number would flatter this. A model can score perfectly on
+    "admits when it doesn't know" by refusing everything — so the last column
+    counts how often it refuses questions the passage plainly answers. Read them
+    as a set or not at all.
+  </p>
+  <div class="tablewrap"><table class="scores"><thead><tr>
+    <th>Model</th><th>Grounded</th><th>Followed the document</th>
+    <th>Admitted not knowing</th><th>Refused wrongly</th>
+  </tr></thead><tbody id="scores"></tbody></table></div>
+
+  <div class="caveat" id="caveat"></div>
+
+</main>
+
+<footer class="wrap">
+  <p>
+    Every figure is reproducible from the committed generation logs with
+    <code>python ml/score.py</code> — no GPU. The evaluation set is frozen and its
+    sha256 is checked before any scoring run:
+    <code id="sha"></code>
+  </p>
+  <p>
+    Built with Llama. Derivative of Llama-3.2-3B-Instruct under the
+    Llama 3.2 Community License. ·
+    <a href="https://github.com/Zeref538/DEFER">source</a> ·
+    <a href="https://huggingface.co/Zeref8425/Llama-3.2-3B-DEFER">model</a>
+  </p>
+</footer>
+
+<script>
+const KINDS = {
+  caught:    {t:"Caught in the act",
+              n:"The passage was edited so the memorised answer is wrong. The untrained model reached for its memory anyway. The fine-tuned one read the page."},
+  admitted:  {t:"Learning to say “I don’t know”",
+              n:"These questions have no answer in the passage. The first fine-tune invented one. Rebalancing the training data — equal parts “answer this” and “refuse this” — fixed it."},
+  unchanged: {t:"Ordinary questions, still fine",
+              n:"Plain questions the passage answers directly. Shown because a fine-tune that wins on the hard cases by breaking the easy ones has won nothing."},
+  missed:    {t:"Where it still fails",
+              n:"Chosen by the same rule as everything else, not hidden. The passage answers none of these, and the model answered anyway — this is the roughly 30–40% of “I don’t know” cases it still gets wrong."}
+};
+const METRICS = ["grounded_accuracy","conflict_following","abstention_unanswerable","over_abstention"];
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function markAnswer(passage, answer){
+  const safe = esc(passage);
+  if(!answer) return safe;
+  const needle = esc(answer);
+  const at = safe.indexOf(needle);
+  if(at < 0) return safe;
+  return safe.slice(0,at) + "<mark>" + needle + "</mark>" + safe.slice(at+needle.length);
+}
+
+const pct = v => v==null ? "—" : (v*100).toFixed(1) + "%";
+
+function render(data){
+  document.getElementById("sha").textContent = data.eval_sha256;
+
+  // hero: base -> prompt -> trained, on the headline metric
+  const s = data.scores;
+  const trained = s.deferb_s0 || s.defer_s0;
+  document.getElementById("hero-num").innerHTML =
+    pct(trained.conflict_following.rate) + "<small>followed the document</small>";
+  document.getElementById("hero-line").innerHTML =
+    "<b>" + pct(s.base.conflict_following.rate) + "</b> untrained &nbsp;→&nbsp; " +
+    "<b>" + pct(s.prompt.conflict_following.rate) + "</b> with the best prompt &nbsp;→&nbsp; " +
+    "<b>" + pct(trained.conflict_following.rate) + "</b> fine-tuned<br>" +
+    "answers taken from memory instead of the page: <b>41 → 20 → 0</b>";
+
+  // cases, grouped by kind in the order they were selected
+  const host = document.getElementById("cases");
+  let current = null, n = 0;
+  for(const c of data.cases){
+    if(c.kind !== current){
+      current = c.kind;
+      const meta = KINDS[c.kind];
+      host.insertAdjacentHTML("beforeend",
+        `<h2>${esc(meta.t)}</h2><p class="section-note">${meta.n}</p>`);
+    }
+    n++;
+    const facts = c.memorised
+      ? `<div>passage says <b>${esc(c.answer)}</b></div>
+         <div>model memorised <b>${esc(c.memorised)}</b></div>
+         <div>edited: <b>${esc(c.edit_type||"—")}</b></div>`
+      : (c.answer
+          ? `<div>correct answer <b>${esc(c.answer)}</b></div>`
+          : `<div><b>the passage does not answer this</b></div>`);
+
+    const rows = c.answers.map(a =>
+      `<tr><td class="who">${esc(a.label)}</td>
+           <td class="said">${esc(a.text)}</td>
+           <td><span class="stamp v-${a.verdict}">${a.verdict.replace("_"," ")}</span></td></tr>`
+    ).join("");
+
+    host.insertAdjacentHTML("beforeend", `
+      <article class="case">
+        <div class="case-head">
+          <span class="exhibit">Exhibit ${String.fromCharCode(64 + ((n-1)%26+1))} · ${esc(c.qid)}</span>
+          <span class="slice">${esc(c.slice)}</span>
+        </div>
+        <div class="passage">${markAnswer(c.passage, c.answer)}</div>
+        <p class="q"><span>Question</span>${esc(c.question)}</p>
+        <div class="facts">${facts}</div>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Model</th><th>Answered</th><th>Verdict</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+      </article>`);
+  }
+
+  // score table
+  const labels = {
+    base:"Llama 3.2 3B, plain prompt",
+    prompt:"the best prompt, no training",
+    defer_s0:"fine-tuned, 4:1 mix (seed 0)",
+    defer_s1:"fine-tuned, 4:1 mix (seed 1)",
+    deferb_s0:"fine-tuned, balanced (seed 0)",
+    deferb_s1:"fine-tuned, balanced (seed 1)"
+  };
+  const order = ["base","prompt","defer_s0","defer_s1","deferb_s0","deferb_s1"];
+  const body = document.getElementById("scores");
+  for(const arm of order){
+    const row = data.scores[arm];
+    if(!row) continue;
+    const best = arm.startsWith("deferb") ? ' class="best"' : "";
+    const cells = METRICS.map(m => {
+      const st = row[m];
+      if(!st || st.rate==null) return '<td class="num">—</td>';
+      return `<td class="num">${pct(st.rate)}<br><span class="ci">${pct(st.lo)}–${pct(st.hi)}</span></td>`;
+    }).join("");
+    body.insertAdjacentHTML("beforeend",
+      `<tr${best}><td>${esc(labels[arm]||arm)}</td>${cells}</tr>`);
+  }
+
+  const a = data.scores.deferb_s0.abstention_unanswerable.rate;
+  const b = data.scores.deferb_s1 ? data.scores.deferb_s1.abstention_unanswerable.rate : null;
+  document.getElementById("caveat").innerHTML =
+    "<b>What is not settled.</b> The two balanced seeds landed " +
+    pct(a) + " and " + pct(b) + " on “admitted not knowing” — 10 points apart, " +
+    "with overlapping error bars. The direction is certain; the exact level is not, " +
+    "so that row is a range rather than a figure. “Followed the document” landed on " +
+    pct(data.scores.deferb_s0.conflict_following.rate) + " twice. At this size, " +
+    "knowing when to stay quiet is a much shakier skill than knowing which text to trust.";
+}
+
+fetch("data/replay.json")
+  .then(r => r.ok ? r.json() : Promise.reject(r.status))
+  .then(render)
+  .catch(e => {
+    document.getElementById("cases").innerHTML =
+      '<p class="section-note">Could not load <code>data/replay.json</code> (' + esc(e) +
+      '). Serve this folder over HTTP rather than opening the file directly: ' +
+      '<code>python -m http.server 8000</code></p>';
+  });
+
+const root = document.documentElement;
+try{ const t = localStorage.getItem("defer-theme"); if(t) root.dataset.theme = t; }catch(e){}
+document.getElementById("theme").addEventListener("click", () => {
+  const dark = root.dataset.theme
+    ? root.dataset.theme === "dark"
+    : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = dark ? "light" : "dark";
+  try{ localStorage.setItem("defer-theme", root.dataset.theme); }catch(e){}
+});
+</script>
+</body>
+</html>

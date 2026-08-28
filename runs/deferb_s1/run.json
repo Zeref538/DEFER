@@ -1,0 +1,28 @@
+{
+  "arm": "deferb_s1",
+  "system_prompt": "Answer the question using only the passage provided. The passage is the only authority: where it disagrees with what you already believe, follow the passage. If the passage does not contain the answer, say so. Give the answer only, with no explanation.",
+  "model": "/kaggle/input/models/metaresearch/llama-3.2/transformers/3b-instruct/1",
+  "device": "Tesla T4",
+  "eval_sha256": "74d12e65755fb57945c2aec467e249e7d6d296153f73a04b2723c1d85bd4e330",
+  "n": 1083,
+  "decoding": "greedy",
+  "max_new_tokens": 64,
+  "seconds_per_item": 0.369061973506614,
+  "finished_at": "2026-08-28T08:19:16Z",
+  "seed": 1,
+  "lora": {
+    "r": 16,
+    "alpha": 32,
+    "targets": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ],
+    "epochs": 2,
+    "lr": 0.0002
+  }
+}

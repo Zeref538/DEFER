@@ -7,9 +7,9 @@ DEFER measures how often that happens to a small open model, tries to fix it, an
 reports what the fix costs. *To defer* means yielding to something outside
 yourself. The bug is a model that defers to its own memory instead.
 
-**Status: specification. Nothing has been trained or measured yet.** There are no
-results in this repository, and no number below is a result. When there are, they
-land in [`results/scores.txt`](results/) first and are copied here second.
+**Status: trained and scored.** Two seeds trained, four arms measured on the
+frozen evaluation set. The headline question has an answer, and so does the
+question of what the answer cost.
 
 ---
 
@@ -35,6 +35,61 @@ The catch is that you can only run this trick on facts the model actually
 memorised. So the first thing the pipeline does is ask questions with no context
 at all and keep the ones it already knows. Everything else is built from that
 list.
+
+## What the base model already knows
+
+Measured, not assumed. Llama-3.2-3B-Instruct asked 15,944 questions with no
+passage at all, eight samples each, on a Kaggle T4 at 0.186 seconds per question:
+
+| split | typed questions | reliably known |
+|---|---:|---:|
+| dev | 870 | 137 (15.7%) |
+| train | 15,074 | 2,083 (13.8%) |
+
+Only those 2,220 can become conflict items. You cannot catch a model preferring
+its memory over the page about a fact it never memorised -- it would have read
+the page anyway.
+
+The shape of that number matters more than the number. Of 870 dev questions,
+612 scored 0 of 8 and 105 scored 8 of 8, with only 153 spread across the middle.
+The model knows a fact cold or not at all, so the "counts as known at 6 of 8"
+cutoff sits in an empty valley rather than on a slope, and the headline is not
+sensitive to where the line was drawn.
+
+## The frozen evaluation set
+
+**1,083 items, locked.** `data/eval.lock` holds its sha256 and every scoring run
+refuses to proceed on a mismatch.
+
+| slice | items |
+|---|---:|
+| conflict | 483 |
+| grounded | 300 |
+| unanswerable | 300 |
+
+The conflict slice is sized by the width of its error bars, not by taste. A
+bootstrap at a rate of 0.30 gives a 22-point interval at 68 items, 11.8 at 238,
+and 8.0 at 500. The previous study measured an 18-point spread between two
+seeds, so anything near 238 could not be ranked against noise.
+
+Dev alone yields only 68 balanced conflict items, so part of the train split is
+reserved for the evaluation and kept out of training, enforced by question id.
+That check earned its keep immediately: the first build pulled one reserved item
+back into training through a pool that excluded training conflict items but not
+reserved ones, and the assertion caught it.
+
+## Why so much of SQuAD is thrown away
+
+Most of the loss is deliberate. The builder only accepts questions whose wording
+announces what kind of thing the answer is — *who*, *what year*, *how many*,
+*what city* — because guessing between a person, a place and a thing needs an
+entity model, and a wrong guess writes a passage that reads as broken. Bare
+*"what is X"* is left alone. So is bare *"where"*, after it turned out to answer
+with things like `"third"` and `"between P and PSPACE"`.
+
+The levelling matters more than it looks: 57% of SQuAD answers sit in the first
+third of their passage, and an evaluation set shaped like that quietly rewards a
+model that skims the opening and stops.
 
 ## Why this project exists
 
@@ -67,9 +122,93 @@ INCONCLUSIVE**, not ranked.
 
 ## Results
 
-Not yet run. This section will hold the arm-by-arm table once `ml/score.py` has
-something to score. Arms planned: `base`, `prompt` (the free baseline, measured
-before any training), `defer_s0`, `defer_s1`.
+Llama-3.2-3B-Instruct, 1,083 frozen items, greedy decoding, Tesla T4. Two seeds
+per training mix -- same data, same settings, different shuffle.
+
+| arm | grounded | **conflict following** | abstention (unans.) | over-abstention |
+|---|---:|---:|---:|---:|
+| base | 76.0% | 82.2% | 21.7% | 1.5% |
+| prompt *(free baseline)* | 77.0% | 87.2% | 33.3% | 2.3% |
+| defer_s0 *(4:1 mix)* | 77.3% | 97.5% | 20.7% | 0.4% |
+| defer_s1 *(4:1 mix)* | 76.3% | 97.9% | 19.7% | 0.3% |
+| **deferb_s0** *(1:1 mix)* | 73.0% | **96.3%** | **60.3%** | 1.8% |
+| **deferb_s1** *(1:1 mix)* | 73.0% | **96.3%** | **70.7%** | 2.2% |
+
+Over-abstention is the only column where lower is better. Every rate carries a
+95% bootstrap interval in [`results/scores.txt`](results/scores.txt).
+
+### The headline holds
+
+Conflict following goes 82.2% untrained, 87.2% with the best prompt, 96.3%
+trained. The bar is the prompt arm, not the base arm, because prompting is free
+and both trained arms saw that same instruction.
+
+On the 483 conflict items, answers taken from memory instead of the passage:
+
+```
+base 41   ->   prompt 20   ->   trained 0
+```
+
+Zero, on all four trained checkpoints. Both mixes, all four seeds.
+
+### The first mix passed the headline and failed the study
+
+`defer_s0/s1` scored 97.9% conflict following while abstention *fell* to 20.3%
+-- worse than a plain prompt, back where the untrained model started. It had
+learned the refusal sentence exactly as written, produced it verbatim 62 times,
+and used it on 62 of the 300 items that needed it. Words, not judgement.
+
+The cause was arithmetic, not method: 1,308 rows taught "answer from the
+passage" against 327 that taught "refuse". Four times out of five the lesson was
+*extract something*, so it learned to always extract something. Over-abstention
+at 0.3% is the same fact from the other side.
+
+### Rebalancing fixed it, and the fourth column proves it is real
+
+At 1:1 -- 1,084 answer rows against 1,084 refuse rows, eval untouched --
+abstention roughly tripled while conflict following gave up 1.4 points.
+
+The number that matters is not abstention alone. It is abstention *against*
+over-abstention, because a model can score 100% on the first by refusing
+everything:
+
+```
+                 refuses when it should    refuses when it should not
+prompt                   33.3%                       2.8%
+defer_s1 (4:1)           19.7%                       0.4%
+deferb_s1 (1:1)          70.7%                       2.2%
+```
+
+`deferb_s1` refuses 32 times more often on questions the passage cannot answer
+than on questions it can. It produces the taught sentence 212 times out of 300
+where that is correct, and stays quiet about it elsewhere. That is the shape of
+judgement rather than of a model that has learned to go silent -- which is
+exactly what [Refusal Calibration](../Refusal%20Calibration) produced, cutting
+hallucination by 92.5 points while paying 61.5 points of over-refusal.
+
+### What it cost, and what is not settled
+
+**Grounded accuracy fell 4 points**, 77.0% to 73.0%, identical on both seeds.
+The intervals overlap ([72.3–81.7] against [68.0–78.0]) so this is not firmly
+outside noise, but it is consistent, and only ~2 points of it is over-refusal.
+The rest is wrong answers. Teaching a model to hold back appears to cost a
+little of its willingness to commit.
+
+**The abstention number is not precisely rankable.** The two seeds differ by
+10.4 points, 60.3% against 70.7%, and their intervals barely touch. The
+*direction* is not in doubt -- both are far above the 33.3% free baseline and
+the 20.3% of the 4:1 mix -- but anyone quoting a single figure for this row
+would be quoting noise. Conflict following, by contrast, landed on 96.3% twice
+with 465 followed items both times.
+
+That asymmetry is itself a finding: **at this scale, knowing when to stay quiet
+is a far less stable behaviour than knowing which text to trust.**
+
+Reproduce any row from the committed logs, no GPU required:
+
+```bash
+python ml/score.py
+```
 
 ## What gets measured before anything is trained
 
@@ -156,3 +295,9 @@ Reasoning: [ADR 0004](docs/adr/0004-replay-demo-not-live-inference.md).
   in production.
 - No retriever. Passages are handed to the model directly. This measures reading,
   not retrieval.
+- **Edited passages can be anachronistic.** Substitutes are checked for type,
+  magnitude and era — a count stays a count, a year stays within sixty years of
+  the one it replaced — but nothing here knows any history, so a tenth-century
+  Norse leader can end up renamed to a twentieth-century one. Fixing that needs
+  world knowledge the pipeline deliberately does not have. If a model refuses
+  such a passage, that shows up as over-abstention and is reported, not hidden.

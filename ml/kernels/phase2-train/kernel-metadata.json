@@ -1,0 +1,16 @@
+{
+  "id": "johnandreimartinez/defer-phase2-train",
+  "title": "defer-phase2-train",
+  "code_file": "phase2_train.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": ["johnandreimartinez/defer-code"],
+  "competition_sources": [],
+  "model_sources": ["metaresearch/llama-3.2/transformers/3b-instruct/1"],
+  "kernel_sources": []
+}
