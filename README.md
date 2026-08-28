@@ -186,6 +186,32 @@ judgement rather than of a model that has learned to go silent -- which is
 exactly what [Refusal Calibration](../Refusal%20Calibration) produced, cutting
 hallucination by 92.5 points while paying 61.5 points of over-refusal.
 
+### Did it learn the behaviour, or just the trick?
+
+The obvious way to fake this result is to learn the *pattern* rather than the
+behaviour — "when a place name looks swapped, use the one on the page." So one
+edit type was kept out of training entirely, and only ever appears in the
+evaluation.
+
+Training saw `person`, `place` and `number` edits. It never saw a single `year`
+edit. The evaluation has 180 of them.
+
+| arm | types it trained on | `year`, never seen | gap |
+|---|---:|---:|---:|
+| base | 76.9% | 91.1% | +14.2pt |
+| prompt | 83.8% | 92.8% | +8.9pt |
+| deferb_s0 | 96.7% | 95.6% | −1.1pt |
+| deferb_s1 | 97.0% | 95.0% | −2.0pt |
+
+**Within two points.** A pattern-matcher would have collapsed on the column it
+had never seen; this holds. Whatever the adapter learned transfers to a kind of
+edit that was not in its training data.
+
+One honest wrinkle: the base model was *already better* at `year` items (91.1%
+against 76.9%), because a date sitting in a passage is easy to spot and copy. So
+the held-out column started closer to the ceiling and had less room to gain. The
+claim this supports is generalisation, not a bigger win.
+
 ### What it cost, and what is not settled
 
 **Grounded accuracy fell 4 points**, 77.0% to 73.0%, identical on both seeds.

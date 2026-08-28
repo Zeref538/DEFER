@@ -18,6 +18,7 @@ import generate  # noqa: E402
 import metrics  # noqa: E402
 import kaggle_env  # noqa: E402
 import probe  # noqa: E402
+import rules  # noqa: E402
 import runner  # noqa: E402
 import score  # noqa: E402
 import squad  # noqa: E402
@@ -279,3 +280,32 @@ def test_replay_shows_a_failure_case():
             assert answer["text"] == logged[answer["arm"]][case["qid"]], (
                 f"{case['qid']} / {answer['arm']}: the page shows text that is not "
                 "in the committed log")
+
+
+def test_rules_self_check():
+    rules.demo()
+
+
+def test_every_rule_is_decidable_without_a_model():
+    """Arm B's gate only means something if a script can score it.
+
+    A rule needing an opinion produces a number nobody can re-derive, which is
+    the one thing this project refuses to publish.
+    """
+    for name, (instruction, checker) in rules.RULES.items():
+        assert isinstance(checker("some plain text"), bool), name
+        assert isinstance(instruction, str) and len(instruction) > 20, name
+
+
+def test_reinjection_actually_reinjects():
+    """The free fix being tested must differ from the naive setup by exactly
+    one thing: how often the rule is repeated."""
+    history = [("q", "a")] * 4
+    once = rules.build_messages("no_bullets", history, reinject=False)
+    again = rules.build_messages("no_bullets", history, reinject=True)
+    systems_once = [m for m in once if m["role"] == "system"]
+    systems_again = [m for m in again if m["role"] == "system"]
+    assert len(systems_once) == 1
+    assert len(systems_again) == len(history) + 1
+    assert {m["content"] for m in systems_again} == {systems_once[0]["content"]}, (
+        "re-injection must repeat the SAME rule, not a different one")

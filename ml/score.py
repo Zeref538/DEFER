@@ -98,7 +98,60 @@ def score_arm(items, generations):
     return scored
 
 
-def format_arm(name, summary, scored, manifest):
+def trained_types(root: Path = ROOT):
+    """Which conflict edit types the training mix actually contained.
+
+    Read from the mix rather than hardcoded, so the held-out row stays honest if
+    the mix is ever rebuilt with a different holdout. A constant here would
+    quietly keep claiming "never seen in training" about a type that now is.
+    """
+    path = root / "data" / "train_mix.jsonl"
+    if not path.exists():
+        return None
+    seen = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        record = json.loads(line)
+        if record.get("slice") == "conflict" and record.get("edit_type"):
+            seen.add(record["edit_type"])
+    return seen
+
+
+def held_out_split(scored, trained):
+    """Conflict following, split by whether the edit type was ever trained on.
+
+    This is the sharpest test in the study. A model can score well on conflict
+    items by learning the *pattern* -- "when a city name looks swapped, use the
+    one on the page" -- rather than the behaviour. An edit type it has never
+    seen cannot be answered by pattern. If the two columns match, it learned the
+    behaviour; if the held-out column collapses, it learned the trick.
+    """
+    if not trained:
+        return None
+    seen, unseen, kinds = [], [], set()
+    for record in scored:
+        if record["slice"] != "conflict":
+            continue
+        hit = 1 if record["verdict"] == "followed" else 0
+        if record.get("edit_type") in trained:
+            seen.append(hit)
+        else:
+            unseen.append(hit)
+            kinds.add(record.get("edit_type"))
+    if not unseen or not seen:
+        return None
+    out = {}
+    for key, flags in (("trained_types", seen), ("held_out", unseen)):
+        lo, hi = metrics.bootstrap_ci(flags)
+        out[key] = {"rate": sum(flags) / len(flags), "lo": lo, "hi": hi,
+                    "n": len(flags)}
+    out["held_out_types"] = sorted(k for k in kinds if k)
+    out["gap"] = out["held_out"]["rate"] - out["trained_types"]["rate"]
+    return out
+
+
+def format_arm(name, summary, scored, manifest, split=None):
     lines = [f"arm: {name}   ({len(scored)} items scored)"]
     model = manifest.get("model")
     if model:
@@ -118,6 +171,17 @@ def format_arm(name, summary, scored, manifest):
         counts = Counter(r["verdict"] for r in conflict)
         parts = "  ".join(f"{v}={counts.get(v, 0)}" for v in metrics.VERDICTS)
         lines.append(f"  conflict slice breakdown:  {parts}")
+
+    if split:
+        kinds = ", ".join(split["held_out_types"])
+        a, b = split["trained_types"], split["held_out"]
+        lines.append("  generalisation -- edit types seen in training, "
+                     f"against '{kinds}' which was never seen:")
+        lines.append(f"    trained types        {a['rate']:6.1%}  "
+                     f"[{a['lo']:.1%}, {a['hi']:.1%}]  n={a['n']}")
+        lines.append(f"    HELD OUT             {b['rate']:6.1%}  "
+                     f"[{b['lo']:.1%}, {b['hi']:.1%}]  n={b['n']}   "
+                     f"gap {split['gap'] * 100:+.1f}pt")
     return "\n".join(lines)
 
 
@@ -150,18 +214,38 @@ def main(arms=None, log=print):
         raise SystemExit(
             "no arms to score. Run an arm first -- see docs/APP_FLOW.md.")
 
-    blocks, summaries = [], {}
+    trained = trained_types(ROOT)
+    if trained:
+        log(f"training mix covered conflict types: {sorted(trained)}")
+
+    blocks, summaries, splits = [], {}, {}
     for arm in arms:
         generations, manifest = load_arm(arm, eval_sha, len(items), log=log)
         scored = score_arm(items, generations)
         summary = metrics.summarise(scored)
+        split = held_out_split(scored, trained)
+        if split:
+            splits[arm] = split
+            summary["generalisation"] = split
         summaries[arm] = summary
-        blocks.append(format_arm(arm, summary, scored, manifest))
+        blocks.append(format_arm(arm, summary, scored, manifest, split))
 
     text = "\n\n".join(blocks)
     table = compare(summaries)
     if table:
         text += "\n\n" + table
+    if len(splits) > 1:
+        width = max(len(a) for a in splits)
+        kinds = ", ".join(next(iter(splits.values()))["held_out_types"])
+        rows = ["", f"conflict following, split by whether the edit type was "
+                    f"ever trained on ('{kinds}' never was)",
+                f"{'arm':<{width}}  {'trained':>9}  {'held out':>9}  {'gap':>8}",
+                "-" * (width + 32)]
+        for arm, s in splits.items():
+            rows.append(f"{arm:<{width}}  {s['trained_types']['rate']:>8.1%}  "
+                        f"{s['held_out']['rate']:>8.1%}  "
+                        f"{s['gap'] * 100:>+7.1f}pt")
+        text += "\n" + "\n".join(rows)
     log("")
     log(text)
 

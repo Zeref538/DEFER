@@ -25,7 +25,11 @@ import time
 import traceback
 from pathlib import Path
 
-SEEDS = [0, 1]
+# Seeds 0 and 1 are done. 2 and 3 exist because the abstention result rested on
+# two numbers 10.4 points apart, and two points cannot tell "this behaviour is
+# noisy" from "one run was unlucky". Four can. Same mix, same settings -- only
+# the shuffle differs, so anything that moves is seed noise by definition.
+SEEDS = [2, 3]
 TIME_BUDGET_S = 8.0 * 3600
 
 # Arm names are prefixed by which training mix produced them, because the first
