@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import random
 import re
-import string
 import unicodedata
 
 # --------------------------------------------------------------- normalising
@@ -25,7 +24,11 @@ _WS = re.compile(r"\s+")
 # scores a correct answer as wrong. Deleting apostrophes keeps "don't" as one
 # token instead of splitting it into "don t".
 _DROP = str.maketrans("", "", "'’`")
-_TO_SPACE = str.maketrans({c: " " for c in string.punctuation if c not in "'`"})
+
+# Possessives are stripped before the apostrophe is deleted. Delete the
+# apostrophe first and "Spain's" becomes "spains", which never matches "Spain"
+# -- that scored a correct conflict answer as `other` in the first real run.
+_POSSESSIVE = re.compile(r"['’`]s\b")
 
 # Dotted acronyms collapse to one token *before* the dots become spaces.
 # Without this, "U.S.A." splits to "u s a", the article rule then eats the lone
@@ -44,7 +47,14 @@ def normalize(text: str) -> str:
     text = "".join(c for c in text if not unicodedata.combining(c))
     text = text.lower()
     text = _ACRONYM.sub(lambda m: m.group(0).replace(".", ""), text)
-    text = text.translate(_DROP).translate(_TO_SPACE)
+    text = _POSSESSIVE.sub("", text)
+    text = text.translate(_DROP)
+    # Every Unicode punctuation mark becomes a space, not just the ASCII ones.
+    # SQuAD gold spans carry en dashes: "1973-1974" from the model never matched
+    # "1973<en dash>1974" from the dataset, because the en dash is not in
+    # string.punctuation and so survived as part of one token.
+    text = "".join(" " if unicodedata.category(c).startswith("P") else c
+                   for c in text)
     text = _ARTICLES.sub(" ", text)
     return _WS.sub(" ", text).strip()
 
@@ -70,12 +80,23 @@ def contains(haystack: str, needle: str) -> bool:
 # Phrases that mean "the passage does not answer this". Deliberately a short,
 # explicit list rather than anything clever: every entry is auditable, and a
 # reader can see exactly what was counted as a refusal.
+#
+# `(?:explicitly |directly |...)?` is an optional adverb slot. Without it,
+# "the passage does not explicitly state the disadvantages" fell through as a
+# non-refusal, because the adverb sat between "not" and "state".
+#
+# "could not find" is included but "did not find" is NOT, and that asymmetry is
+# deliberate. A model writing "I couldn't find it" is refusing; a model writing
+# "the court did not find that treaties supersede statute" is answering. Both
+# turned up in the real logs, and one rule would have to get one of them wrong.
 _ABSTAIN = re.compile(
     r"not (?:in|mentioned|stated|provided|specified|given|present|found|available)"
     r"|no (?:information|mention|answer|indication|reference)"
-    r"|does\s?n\W?o?\W?t (?:say|state|mention|specify|provide|contain|include|indicate)"
+    r"|does\s?n\W?o?\W?t (?:explicitly |directly |specifically |clearly )?"
+    r"(?:say|state|mention|specify|provide|contain|include|indicate)"
     r"|do\s?n\W?o?\W?t (?:know|have)"
     r"|can\s?n\W?o?\W?t be (?:determined|answered|found|established)"
+    r"|(?:could|can)\s?n\W?o?\W?t find"
     r"|unable to (?:determine|answer|find)"
     r"|unanswerable"
     r"|insufficient (?:information|context|detail)",
@@ -202,6 +223,10 @@ def demo():
     assert contains("Answer: New York City", "new york city")
     assert contains("founded in the U.S.A. in 1801", "USA"), "dotted acronym"
     assert normalize("New-York") == "new york", "hyphen must split, not delete"
+    # Both of these scored real answers wrong in the first Kaggle run.
+    assert contains("Spain's.", "Spain"), "possessive must still match"
+    assert contains("It happened in 1973-1974.", "1973–1974"), "en dash"
+    assert normalize("don't") == "dont", "apostrophe inside a word is deleted"
 
     conflict = {"slice": "conflict", "answer": "Lyon", "memorised": "Paris"}
     assert verdict(conflict, "The capital is Lyon.") == "followed"
@@ -215,6 +240,17 @@ def demo():
     assert verdict(unans, "There is no information about that.") == "abstained"
     assert verdict(unans, "It was 1996.") == "other"
     assert abstained("The passage doesn't mention it."), "contraction form"
+    # All four turned up in the real Kaggle logs and were scored wrong at first.
+    assert abstained("I couldn't find the answer in the passage.")
+    assert abstained("I couldn't find any information on that.")
+    assert abstained("The passage does not explicitly state the disadvantages."), (
+        "an adverb between 'not' and the verb must not hide a refusal")
+    assert not abstained(
+        "It did not find that international treaties supersede statute."), (
+        "'did not find' is an answer about a court, not a refusal")
+    assert not abstained(
+        "It does not allow the European Council to regulate mergers."), (
+        "a negation about the world is not a refusal to answer")
 
     recs = [
         {"slice": "conflict", "verdict": "followed"},
