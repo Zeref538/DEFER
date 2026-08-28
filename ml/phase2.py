@@ -28,6 +28,13 @@ from pathlib import Path
 SEEDS = [0, 1]
 TIME_BUDGET_S = 8.0 * 3600
 
+# Arm names are prefixed by which training mix produced them, because the first
+# pair is not being thrown away -- the comparison between the two mixes IS the
+# result. `defer` was the 4:1 answer-to-refuse mix; `deferb` is the balanced 1:1
+# rebuild. Overwriting the first pair would delete the evidence for why the
+# second one exists.
+ARM_PREFIX = "deferb"
+
 import generate as gen        # noqa: E402
 import metrics                # noqa: E402
 import train as train_mod     # noqa: E402
@@ -93,8 +100,9 @@ def main():
 
     for seed in SEEDS:
         line(f"4. seed {seed}")
-        out_dir = WORK / f"defer_s{seed}"
-        gen_path = WORK / f"defer_s{seed}__generations.jsonl"
+        arm = f"{ARM_PREFIX}_s{seed}"
+        out_dir = WORK / arm
+        gen_path = WORK / f"{arm}__generations.jsonl"
 
         if (out_dir / "adapter_model.safetensors").exists():
             print(f"  adapter already on disk at {out_dir}, skipping training")
@@ -125,7 +133,6 @@ def main():
             print(f"  adapter saved to {out_dir}")
 
         # ------------------------------------------------------- generate its arm
-        arm = f"defer_s{seed}"
         print(f"  generating arm '{arm}' over the frozen eval")
         if model is None:
             model, tokenizer = load_for_inference(model_ref, out_dir)
@@ -192,10 +199,13 @@ def main():
         model = tokenizer = None
 
     line("DONE")
-    print("  Download defer_s*/ and defer_s*__generations.jsonl into runs/, then")
-    print("  `python ml/score.py` on the laptop. The scorer is the authority.")
+    print(f"  Download {ARM_PREFIX}_s*/ and {ARM_PREFIX}_s*__generations.jsonl into runs/,")
+    print("  then `python ml/score.py` on the laptop. The scorer is the authority.")
     print()
-    print("  The bar is the PROMPT arm: 87.2% conflict following, 33.3% abstention.")
+    print("  Two bars, not one. The PROMPT arm is the free baseline: 87.2% conflict")
+    print("  following, 33.3% abstention. The first trained pair is the thing this")
+    print("  rebuild is trying to beat on abstention WITHOUT losing its 97.9%:")
+    print("  defer_s0/s1 scored 97.5/97.9 conflict, 20.7/19.7 abstention.")
 
 
 def load_for_inference(model_ref: str, adapter_dir: Path):

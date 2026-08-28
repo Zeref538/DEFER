@@ -222,3 +222,33 @@ def test_scoring_a_stale_arm_is_refused_not_ranked():
         assert "different evaluation set" in str(exc)
     finally:
         score.RUNS = saved
+
+
+def test_training_mix_never_touches_the_frozen_eval():
+    """The leak that matters, checked against the files on disk.
+
+    A rebuild once replaced a 1,083-item eval with a 1,093-item one and re-locked
+    it to itself. Nothing looked wrong -- the build printed a clean summary --
+    but every arm already scored had been measured against the other file. The
+    cause was not the mix change: conflict.py calls metrics.contains, so fixing
+    normalisation reshaped which conflict items survive.
+
+    This reads the two committed files and compares them directly, so it fails
+    whether the drift came from the mix, the eval, or anything upstream of both.
+    """
+    import json
+
+    root = Path(__file__).resolve().parent.parent
+    eval_path = root / "data" / "eval.jsonl"
+    mix_path = root / "data" / "train_mix.jsonl"
+    if not (eval_path.exists() and mix_path.exists()):
+        return
+
+    eval_ids = {json.loads(l)["qid"]
+                for l in eval_path.read_text(encoding="utf-8").splitlines() if l.strip()}
+    mix_ids = {json.loads(l)["qid"]
+               for l in mix_path.read_text(encoding="utf-8").splitlines() if l.strip()}
+    leaked = eval_ids & mix_ids
+    assert not leaked, (
+        f"{len(leaked)} qids are in BOTH data/eval.jsonl and data/train_mix.jsonl. "
+        "The model would be scored on questions it was trained on.")

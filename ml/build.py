@@ -61,6 +61,20 @@ N_UNANSWERABLE = 300
 # against 544 items at 40% with no levelling at all. Nearly free.
 PER_CELL = 60
 
+# How many "refuse" rows to include, as a multiple of the "answer" rows.
+#
+# The first trained pair used 0.5 -- 1,308 rows teaching "answer from the
+# passage" against 327 teaching "refuse", four to one. It worked exactly as that
+# ratio predicts: conflict following hit 97.9% while abstention on unanswerable
+# items FELL to 20.3%, below the 33.3% a plain prompt gets for free. The model
+# learned the refusal sentence verbatim and then almost never used it, because
+# four times out of five the lesson was "extract something".
+#
+# 1.0 is the direct test of that diagnosis. Over-abstention is the guard: if the
+# model starts refusing questions the passage plainly answers, this overshot,
+# and that column is what makes it visible.
+REFUSE_RATIO = 1.0
+
 # One answer type is kept out of training completely and reported as its own row.
 # `year` is the choice because it is structurally unlike the others -- a number
 # rather than a proper noun -- so it is the sharpest test of the trap this whole
@@ -74,6 +88,20 @@ SYSTEM_PROMPT = (
     "Answer the question using only the passage provided. If the passage does "
     "not contain the answer, say that it is not in the passage."
 )
+
+
+def frozen_eval_qids() -> set:
+    """The qids in data/eval.jsonl as it exists on disk, or an empty set.
+
+    Deliberately reads the file rather than the eval this run just built. Those
+    are the same thing only while nothing upstream has changed, and the whole
+    point of a frozen eval is that it stays put while everything else moves.
+    """
+    path = DATA / "eval.jsonl"
+    if not path.exists():
+        return set()
+    return {json.loads(line)["qid"]
+            for line in path.read_text(encoding="utf-8").splitlines() if line.strip()}
 
 
 def load_known(split: str) -> set:
@@ -126,7 +154,7 @@ def fill(record):
     return {k: record.get(k) for k in keys}
 
 
-def build(seed: int = 0, write: bool = True, log=print):
+def build(seed: int = 0, write: bool = True, log=print, mix_only: bool = False):
     rng = random.Random(seed)
 
     # ---------------------------------------------------------- conflict
@@ -183,9 +211,20 @@ def build(seed: int = 0, write: bool = True, log=print):
     # is the part that is easy to miss -- they live in the train split, so a
     # naive "anything from train" pool pulls an eval item straight back into
     # training. The overlap assert in check() caught exactly that.
+    # The frozen eval on disk is the authority, not the one just recomputed.
+    # Those two can differ -- a change anywhere in normalisation or conflict
+    # construction shifts which items survive -- and when they do, filtering
+    # against the recomputed set would let an item that IS in the frozen eval
+    # walk straight into training. Read the file.
+    frozen = frozen_eval_qids()
+    if frozen:
+        log(f"  frozen eval on disk holds {len(frozen)} qids, all excluded from training")
+
     spoken_for = ({r["qid"] for r in train_records}
                   | {r["qid"] for r in reserved}
-                  | {r["qid"] for r in held})
+                  | {r["qid"] for r in held}
+                  | frozen)
+    train_records = [r for r in train_records if r["qid"] not in frozen]
 
     train_answerable = [
         i for i in squad.items("train", "answerable") if i["qid"] not in spoken_for
@@ -193,9 +232,17 @@ def build(seed: int = 0, write: bool = True, log=print):
     rng.shuffle(train_answerable)
     train_grounded = [as_eval_record(i, "grounded")
                       for i in train_answerable[:len(train_records)]]
+    n_answer = len(train_records) + len(train_grounded)
+    n_refuse = int(n_answer * REFUSE_RATIO)
     train_unans = [as_eval_record(i, "unanswerable")
                    for i in squad.items("train", "unanswerable")
-                   if i["qid"] not in spoken_for][:len(train_records) // 2]
+                   if i["qid"] not in spoken_for][:n_refuse]
+    if len(train_unans) < n_refuse:
+        raise SystemExit(
+            f"only {len(train_unans)} unanswerable train items available, "
+            f"need {n_refuse} at REFUSE_RATIO={REFUSE_RATIO}")
+    log(f"  mix balance: {n_answer} answer rows, {len(train_unans)} refuse rows "
+        f"({n_answer / len(train_unans):.1f} : 1)")
     for record in train_unans:
         record["answer"] = None
 
@@ -207,9 +254,48 @@ def build(seed: int = 0, write: bool = True, log=print):
     if write:
         DATA.mkdir(parents=True, exist_ok=True)
         eval_text = "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in eval_records)
-        atomic_write(DATA / "eval.jsonl", eval_text)
         digest = hashlib.sha256(eval_text.encode("utf-8")).hexdigest()
-        atomic_write(DATA / "eval.lock", digest)
+
+        # Rebuilding to change the TRAINING mix must never disturb the eval.
+        # This guard was added *after* a rebuild silently replaced a 1,083-item
+        # eval with a 1,093-item one. Nothing about that looked wrong: the build
+        # printed a clean summary and re-locked the new file to itself. The four
+        # arms already scored would simply have been measured against a
+        # different exam, and no later output would have said so.
+        #
+        # The cause was not the mix change at all. `conflict.py` calls
+        # `metrics.contains`, so fixing the possessive and en-dash bugs in
+        # normalisation changed which conflict items pass their own checks --
+        # a scoring fix quietly reshaped the dataset. That coupling is exactly
+        # why the lock compares bytes rather than trusting that inputs held
+        # still.
+        lock_path = DATA / "eval.lock"
+        if mix_only:
+            # Rebuilding the mix alone. The eval file is not written at all --
+            # not even to an identical value -- so there is no window in which
+            # a crash could leave it half-replaced.
+            atomic_write(DATA / "train_mix.jsonl",
+                         "".join(json.dumps(r, ensure_ascii=False) + "\n"
+                                 for r in training))
+            log(f"  wrote data/train_mix.jsonl ({len(training)} items)")
+            log("  data/eval.jsonl untouched")
+            return eval_records, training
+        if lock_path.exists():
+            locked = lock_path.read_text(encoding="utf-8").strip()
+            if digest != locked:
+                raise SystemExit(
+                    "this build would change the frozen eval.\n"
+                    f"  would write: {digest}\n"
+                    f"  locked:      {locked}\n"
+                    f"  items:       {len(eval_records)}\n"
+                    "Every arm already scored is measured against the locked "
+                    "one, so the two could never be compared. Use "
+                    "`--mix-only` to rebuild just the training mix. If the eval "
+                    "genuinely must change, delete data/eval.lock, rebuild, and "
+                    "re-run EVERY arm from scratch.")
+            log(f"  eval unchanged, still {digest[:16]}...")
+        atomic_write(DATA / "eval.jsonl", eval_text)
+        atomic_write(lock_path, digest)
         atomic_write(DATA / "train_mix.jsonl",
                      "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in training))
         log(f"  wrote data/eval.jsonl ({len(eval_records)} items)")
@@ -227,6 +313,15 @@ def check(eval_records, training, log=print):
     assert len(eval_ids) == len(eval_records), "duplicate qid in the eval"
     overlap = eval_ids & train_ids
     assert not overlap, f"{len(overlap)} qids are in BOTH eval and training"
+
+    # And against the eval actually on disk, which is what every arm was scored
+    # on. The check above only compares training to the eval this run rebuilt;
+    # if those two drifted apart, it would pass while the real leak went by.
+    frozen = frozen_eval_qids()
+    leaked = frozen & train_ids
+    assert not leaked, (
+        f"{len(leaked)} training rows are in the FROZEN eval on disk. "
+        "Training on them would score the model on questions it was taught.")
 
     for record in eval_records:
         is_unans = record["slice"] == "unanswerable"
@@ -270,6 +365,9 @@ def demo():
 if __name__ == "__main__":
     if "--check" in sys.argv:
         demo()
+    elif "--mix-only" in sys.argv:
+        print("rebuilding the training mix only; the frozen eval is not touched")
+        build(write=True, mix_only=True)
     else:
         print("building the frozen eval and the training mix")
         build(write=True)
