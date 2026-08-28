@@ -39,15 +39,18 @@ CODE = [
     "ml/metrics.py",
     "ml/phase0.py",
     "ml/phase1.py",
+    "ml/phase2.py",
     "ml/probe.py",
     "ml/runner.py",
     "ml/score.py",
     "ml/squad.py",
     "ml/tests.py",
+    "ml/train.py",
 ]
 DATA = [
     "data/eval.jsonl",
     "data/eval.lock",
+    "data/train_mix.jsonl",
 ]
 
 
