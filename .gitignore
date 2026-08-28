@@ -28,3 +28,6 @@ data/probe_raw.jsonl
 Thumbs.db
 .vscode/
 .idea/
+
+# trained adapters — ~110 MB each, published to Hugging Face instead
+adapters/

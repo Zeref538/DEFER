@@ -7,10 +7,9 @@ DEFER measures how often that happens to a small open model, tries to fix it, an
 reports what the fix costs. *To defer* means yielding to something outside
 yourself. The bug is a model that defers to its own memory instead.
 
-**Status: phase 0 complete.** The base model has been probed and the evaluation
-set is built and locked. Nothing has been fine-tuned yet, so there is still no
-result for the headline question — every number below is a measurement of the
-data or the base model, never of a trained checkpoint.
+**Status: trained and scored.** Two seeds trained, four arms measured on the
+frozen evaluation set. The headline question has an answer, and so does the
+question of what the answer cost.
 
 ---
 
@@ -123,10 +122,53 @@ INCONCLUSIVE**, not ranked.
 
 ## Results
 
-Nothing trained yet, so this section is empty on purpose. It will hold the
-arm-by-arm table once `ml/score.py` has something to score. Arms planned:
-`base`, `prompt` (the free baseline, measured before any training), `defer_s0`,
-`defer_s1`.
+Llama-3.2-3B-Instruct, 1,083 frozen items, greedy decoding, Tesla T4. Two
+trained seeds, same data, same hyperparameters, different shuffle.
+
+| arm | grounded | **conflict following** | abstention (unans.) | over-abstention |
+|---|---:|---:|---:|---:|
+| base | 76.0% | 82.2% | 21.7% | 1.5% |
+| prompt | 77.0% | 87.2% | 33.3% | 2.3% |
+| defer_s0 | 77.3% | **97.5%** | 20.7% | 0.4% |
+| defer_s1 | 76.3% | **97.9%** | 19.7% | 0.3% |
+
+95% bootstrap intervals on the headline: base 78.5-85.5, prompt 84.1-90.1,
+defer_s0 96.1-98.8, defer_s1 96.5-99.2. Over-abstention is the only column where
+lower is better.
+
+**The headline worked.** Conflict following goes from 82.2% untrained to 97.5%
+and 97.9% trained -- 10.4 points above the free prompt baseline, which is the
+bar that matters, since prompting costs nothing. On the 483 conflict items the
+number of answers taken from memory instead of the passage goes 41 -> 20 -> 0.
+Both seeds. Zero.
+
+The two seeds agree on 94.1% of individual verdicts and differ by 0.4 points on
+the headline, so this is not a one-run fluke being read as an effect.
+
+**And it cost something the headline does not show.** Abstention fell from 33.3%
+to 20.3% -- the trained model is *worse* than a plain prompt at saying "that is
+not in the passage", and roughly back where the untrained model started.
+
+The cause is visible in the training mix and not mysterious: 1,308 rows teach
+"answer from the passage" against 327 that teach "refuse", four to one. The
+model learned the refusal sentence perfectly -- it produces
+`"That is not stated in the passage."` verbatim, 62 times, exactly as taught --
+and then uses it on 62 of the 300 items that need it. It learned the words, not
+the judgement. Over-abstention falling to 0.3% is the same fact from the other
+side: this checkpoint will answer anything.
+
+This is [Refusal Calibration](../Refusal%20Calibration)'s finding reflected. That
+study produced a model that cut hallucination by 92.5 points while paying 61.5
+points of over-refusal -- one that had learned to go quiet. This one learned the
+opposite reflex, and only the fourth column makes it visible. A table showing
+97.9% alone would describe a model that learned to read. It learned to always
+extract something, which is a different and more dangerous skill.
+
+Reproduce any row from the committed logs, no GPU required:
+
+```bash
+python ml/score.py
+```
 
 ## What gets measured before anything is trained
 

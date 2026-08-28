@@ -19,7 +19,7 @@ the very metric this is meant to move, and it would look like a training
 failure rather than a spelling mismatch.
 
 LoRA, briefly: instead of moving all 3 billion weights, freeze them and train a
-small pair of matrices alongside a few of them. What you save is a ~50 MB file,
+small pair of matrices alongside a few of them. What you save is a ~110 MB file,
 not a 6 GB one, and it fits on a free T4 -- which is the only reason this study
 is possible at all.
 
