@@ -122,47 +122,87 @@ INCONCLUSIVE**, not ranked.
 
 ## Results
 
-Llama-3.2-3B-Instruct, 1,083 frozen items, greedy decoding, Tesla T4. Two
-trained seeds, same data, same hyperparameters, different shuffle.
+Llama-3.2-3B-Instruct, 1,083 frozen items, greedy decoding, Tesla T4. Two seeds
+per training mix -- same data, same settings, different shuffle.
 
 | arm | grounded | **conflict following** | abstention (unans.) | over-abstention |
 |---|---:|---:|---:|---:|
 | base | 76.0% | 82.2% | 21.7% | 1.5% |
-| prompt | 77.0% | 87.2% | 33.3% | 2.3% |
-| defer_s0 | 77.3% | **97.5%** | 20.7% | 0.4% |
-| defer_s1 | 76.3% | **97.9%** | 19.7% | 0.3% |
+| prompt *(free baseline)* | 77.0% | 87.2% | 33.3% | 2.3% |
+| defer_s0 *(4:1 mix)* | 77.3% | 97.5% | 20.7% | 0.4% |
+| defer_s1 *(4:1 mix)* | 76.3% | 97.9% | 19.7% | 0.3% |
+| **deferb_s0** *(1:1 mix)* | 73.0% | **96.3%** | **60.3%** | 1.8% |
+| **deferb_s1** *(1:1 mix)* | 73.0% | **96.3%** | **70.7%** | 2.2% |
 
-95% bootstrap intervals on the headline: base 78.5-85.5, prompt 84.1-90.1,
-defer_s0 96.1-98.8, defer_s1 96.5-99.2. Over-abstention is the only column where
-lower is better.
+Over-abstention is the only column where lower is better. Every rate carries a
+95% bootstrap interval in [`results/scores.txt`](results/scores.txt).
 
-**The headline worked.** Conflict following goes from 82.2% untrained to 97.5%
-and 97.9% trained -- 10.4 points above the free prompt baseline, which is the
-bar that matters, since prompting costs nothing. On the 483 conflict items the
-number of answers taken from memory instead of the passage goes 41 -> 20 -> 0.
-Both seeds. Zero.
+### The headline holds
 
-The two seeds agree on 94.1% of individual verdicts and differ by 0.4 points on
-the headline, so this is not a one-run fluke being read as an effect.
+Conflict following goes 82.2% untrained, 87.2% with the best prompt, 96.3%
+trained. The bar is the prompt arm, not the base arm, because prompting is free
+and both trained arms saw that same instruction.
 
-**And it cost something the headline does not show.** Abstention fell from 33.3%
-to 20.3% -- the trained model is *worse* than a plain prompt at saying "that is
-not in the passage", and roughly back where the untrained model started.
+On the 483 conflict items, answers taken from memory instead of the passage:
 
-The cause is visible in the training mix and not mysterious: 1,308 rows teach
-"answer from the passage" against 327 that teach "refuse", four to one. The
-model learned the refusal sentence perfectly -- it produces
-`"That is not stated in the passage."` verbatim, 62 times, exactly as taught --
-and then uses it on 62 of the 300 items that need it. It learned the words, not
-the judgement. Over-abstention falling to 0.3% is the same fact from the other
-side: this checkpoint will answer anything.
+```
+base 41   ->   prompt 20   ->   trained 0
+```
 
-This is [Refusal Calibration](../Refusal%20Calibration)'s finding reflected. That
-study produced a model that cut hallucination by 92.5 points while paying 61.5
-points of over-refusal -- one that had learned to go quiet. This one learned the
-opposite reflex, and only the fourth column makes it visible. A table showing
-97.9% alone would describe a model that learned to read. It learned to always
-extract something, which is a different and more dangerous skill.
+Zero, on all four trained checkpoints. Both mixes, all four seeds.
+
+### The first mix passed the headline and failed the study
+
+`defer_s0/s1` scored 97.9% conflict following while abstention *fell* to 20.3%
+-- worse than a plain prompt, back where the untrained model started. It had
+learned the refusal sentence exactly as written, produced it verbatim 62 times,
+and used it on 62 of the 300 items that needed it. Words, not judgement.
+
+The cause was arithmetic, not method: 1,308 rows taught "answer from the
+passage" against 327 that taught "refuse". Four times out of five the lesson was
+*extract something*, so it learned to always extract something. Over-abstention
+at 0.3% is the same fact from the other side.
+
+### Rebalancing fixed it, and the fourth column proves it is real
+
+At 1:1 -- 1,084 answer rows against 1,084 refuse rows, eval untouched --
+abstention roughly tripled while conflict following gave up 1.4 points.
+
+The number that matters is not abstention alone. It is abstention *against*
+over-abstention, because a model can score 100% on the first by refusing
+everything:
+
+```
+                 refuses when it should    refuses when it should not
+prompt                   33.3%                       2.8%
+defer_s1 (4:1)           19.7%                       0.4%
+deferb_s1 (1:1)          70.7%                       2.2%
+```
+
+`deferb_s1` refuses 32 times more often on questions the passage cannot answer
+than on questions it can. It produces the taught sentence 212 times out of 300
+where that is correct, and stays quiet about it elsewhere. That is the shape of
+judgement rather than of a model that has learned to go silent -- which is
+exactly what [Refusal Calibration](../Refusal%20Calibration) produced, cutting
+hallucination by 92.5 points while paying 61.5 points of over-refusal.
+
+### What it cost, and what is not settled
+
+**Grounded accuracy fell 4 points**, 77.0% to 73.0%, identical on both seeds.
+The intervals overlap ([72.3–81.7] against [68.0–78.0]) so this is not firmly
+outside noise, but it is consistent, and only ~2 points of it is over-refusal.
+The rest is wrong answers. Teaching a model to hold back appears to cost a
+little of its willingness to commit.
+
+**The abstention number is not precisely rankable.** The two seeds differ by
+10.4 points, 60.3% against 70.7%, and their intervals barely touch. The
+*direction* is not in doubt -- both are far above the 33.3% free baseline and
+the 20.3% of the 4:1 mix -- but anyone quoting a single figure for this row
+would be quoting noise. Conflict following, by contrast, landed on 96.3% twice
+with 465 followed items both times.
+
+That asymmetry is itself a finding: **at this scale, knowing when to stay quiet
+is a far less stable behaviour than knowing which text to trust.**
 
 Reproduce any row from the committed logs, no GPU required:
 

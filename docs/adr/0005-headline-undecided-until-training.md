@@ -65,3 +65,39 @@ A third arm is not added to rescue a weak result. If both metrics come back
 inside noise, the study reports the baselines as the finding — that a 3B model
 already follows supplied documents well, and that its real failure is not knowing
 when to stop answering.
+
+---
+
+## Resolution (2026-08-28, after both training mixes)
+
+**Conflict following is the headline. Abstention is reported beside it, with its
+seed spread stated rather than averaged away.**
+
+The measurement that decided it:
+
+| arm | grounded | conflict following | abstention | over-abstention |
+|---|---:|---:|---:|---:|
+| prompt | 77.0% | 87.2% | 33.3% | 2.3% |
+| defer_s0/s1 (4:1) | 77.3 / 76.3% | 97.5 / 97.9% | 20.7 / 19.7% | 0.4 / 0.3% |
+| deferb_s0/s1 (1:1) | 73.0 / 73.0% | 96.3 / 96.3% | 60.3 / 70.7% | 1.8 / 2.2% |
+
+Conflict following earns the headline on stability, not on size. It landed on
+96.3% twice, with 465 followed items both times, and zero from-memory answers
+across all four trained checkpoints. Abstention moved further in absolute terms
+but its two seeds differ by 10.4 points with intervals that barely touch, so a
+single quoted figure for that row would be quoting noise.
+
+Reporting the spread rather than the mean is the point. One seed would have
+produced either "60.3%" or "70.7%" and both would have read as precise.
+
+## What this costs the framing
+
+The project is named for a bug that turned out to be smaller than assumed —
+82.2% conflict following before any training. That does not get quietly
+rewritten. The README leads with the measured baselines, and the fine-tune's
+10.4-point gain over the free prompt baseline is stated as what it is: real,
+seed-stable, and smaller than the headline number alone suggests.
+
+The abstention work was not in the original plan at all. It exists because the
+four-metric rule made a regression visible that a single-number study would have
+shipped as a 97.9% success.
