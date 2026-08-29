@@ -133,6 +133,8 @@ per training mix -- same data, same settings, different shuffle.
 | defer_s1 *(4:1 mix)* | 76.3% | 97.9% | 19.7% | 0.3% |
 | **deferb_s0** *(1:1 mix)* | 73.0% | **96.3%** | **60.3%** | 1.8% |
 | **deferb_s1** *(1:1 mix)* | 73.0% | **96.3%** | **70.7%** | 2.2% |
+| **deferb_s2** *(1:1 mix)* | 71.0% | **96.1%** | **65.0%** | 2.2% |
+| **deferb_s3** *(1:1 mix)* | 72.3% | **96.1%** | **62.0%** | 2.4% |
 
 Over-abstention is the only column where lower is better. Every rate carries a
 95% bootstrap interval in [`results/scores.txt`](results/scores.txt).
@@ -220,15 +222,52 @@ outside noise, but it is consistent, and only ~2 points of it is over-refusal.
 The rest is wrong answers. Teaching a model to hold back appears to cost a
 little of its willingness to commit.
 
-**The abstention number is not precisely rankable.** The two seeds differ by
-10.4 points, 60.3% against 70.7%, and their intervals barely touch. The
-*direction* is not in doubt -- both are far above the 33.3% free baseline and
-the 20.3% of the 4:1 mix -- but anyone quoting a single figure for this row
-would be quoting noise. Conflict following, by contrast, landed on 96.3% twice
-with 465 followed items both times.
+**The abstention number is not precisely rankable.** Four seeds landed 60.3,
+70.7, 65.0 and 62.0. Same data, same settings, only the shuffle differs. Two
+seeds could have been one unlucky run; four cannot, so this is the behaviour
+being genuinely unstable rather than a bad draw.
 
-That asymmetry is itself a finding: **at this scale, knowing when to stay quiet
-is a far less stable behaviour than knowing which text to trust.**
+Set that against the other rows, measured on the very same four checkpoints:
+
+| metric | s0 | s1 | s2 | s3 | spread |
+|---|---:|---:|---:|---:|---:|
+| conflict following | 96.3 | 96.3 | 96.1 | 96.1 | **0.2pt** |
+| abstention (unans.) | 60.3 | 70.7 | 65.0 | 62.0 | **10.3pt** |
+| grounded | 73.0 | 73.0 | 71.0 | 72.3 | 2.0pt |
+| over-abstention | 1.8 | 2.2 | 2.2 | 2.4 | 0.6pt |
+
+Fifty times the spread on one row than the other, from identical training runs.
+**At this scale, knowing when to stay quiet is a far less stable behaviour than
+knowing which text to trust.** Quote abstention as a range — 60 to 71 percent —
+and never as a single figure.
+
+## The second arm, and why it was cut
+
+There is a second version of this bug: give a standing instruction and watch it
+decay by turn ten. It had a gate and a kill rule written before any number
+arrived ([ADR 0003](docs/adr/0003-arm-b-behind-a-gate.md)). The gate has now run
+— 3 script-checkable rules, 12 conversations each, 10 turns, 720 generations —
+and **it killed the arm.**
+
+| rule | stated once, turn 1 → 10 | re-sent every turn |
+|---|---|---|
+| no bullet points | 100% → 100% | 100% → 100% |
+| 40-word cap | 100% → 100% | 100% → 100% |
+
+Zero drift. Not small — zero, in both conditions. Nothing for a fine-tune to
+recover, so the arm is cut and this table is its section, exactly as planned.
+
+**The gate's own first answer was wrong, and the bug was mine.** It reported
+13.9 points of drift and a verdict of passed. That came from a third rule —
+*end every reply with a question mark* — which appeared to collapse from 50% to
+8%. But a reply cut off mid-sentence by the 220-token limit cannot end in a
+question mark however obedient the model is, and 91% of that rule's failures
+were truncated replies. It was measuring my token cap. Counting only replies
+that actually finished, compliance is 96.8% at turn 1 and 100% at turn 10.
+
+ml/rules.py now returns None instead of False when a reply is too
+truncated to judge, and drops those rather than counting them as violations.
+Unmeasurable is not the same as failed.
 
 Reproduce any row from the committed logs, no GPU required:
 

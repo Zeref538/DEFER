@@ -115,15 +115,44 @@ def build_messages(rule_name: str, history, reinject: bool):
     return messages
 
 
-def check(rule_name: str, text: str) -> bool:
+# A reply with no sentence-closing punctuation at the end was cut off by the
+# token limit rather than finished.
+_FINISHED = re.compile(r"[.!?\"'’”)\]]\s*$")
+
+# Rules that a truncated reply fails automatically, through no fault of the
+# model. `end_question` is the whole reason this exists: cut a reply off
+# mid-sentence and it cannot end in a question mark however obedient the model
+# is. Scoring those as violations produced a fake 50%->8% collapse and a gate
+# verdict of "passed" -- 91% of that rule's failures were my own token limit.
+UNMEASURABLE_WHEN_CUT = {"end_question"}
+
+
+def finished(text: str) -> bool:
+    return bool(_FINISHED.search(text.strip()))
+
+
+def check(rule_name: str, text: str):
+    """True, False, or None when the reply was too truncated to judge.
+
+    None rather than False, for the same reason `if x:` is banned on a valid
+    zero elsewhere in this project: unmeasurable is not the same as failed, and
+    collapsing the two invents evidence.
+    """
+    if rule_name in UNMEASURABLE_WHEN_CUT and not finished(text):
+        return None
     _, checker = RULES[rule_name]
     return checker(text)
 
 
 def compliance(records):
-    """records: {rule, condition, turn, ok}. Returns rate per condition per turn."""
+    """records: {rule, condition, turn, ok}. Returns rate per condition per turn.
+
+    Records whose `ok` is None are dropped, not counted as failures.
+    """
     out = {}
     for record in records:
+        if record["ok"] is None:
+            continue
         key = (record["condition"], record["turn"])
         hit, total = out.get(key, (0, 0))
         out[key] = (hit + (1 if record["ok"] else 0), total + 1)
@@ -201,6 +230,24 @@ def demo():
     ])
     assert rates[("once", 1)][0] == 1.0
     assert rates[("once", 10)][0] == 0.0
+
+    # A truncated reply is unmeasurable for end_question, not a violation.
+    assert finished("All done.") and not finished("cut off mid sen")
+    assert check("end_question", "Does that help?") is True
+    assert check("end_question", "That helps.") is False
+    assert check("end_question", "the rider's balance") is None, (
+        "a reply cut off by the token limit cannot end in '?' and must not be "
+        "scored as disobedience -- this exact case faked a 50%->8% collapse")
+    # the other rules stay judgeable on a truncated reply
+    assert check("no_bullets", "long prose that ran out of room") is True
+    assert check("word_cap", "short and cut") is True
+
+    # and an unmeasurable record must be dropped, never counted as a failure
+    dropped = compliance([
+        {"condition": "once", "turn": 1, "ok": True},
+        {"condition": "once", "turn": 1, "ok": None},
+    ])
+    assert dropped[("once", 1)] == (1.0, 1), dropped
 
     # the kill rule has to fire on numbers that should kill it
     quiet = lambda *a: None

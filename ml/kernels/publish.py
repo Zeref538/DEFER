@@ -32,6 +32,7 @@ DATASET = "johnandreimartinez/defer-code"
 # quietly started shipping whatever new file appeared in ml/, including scratch
 # ones, and a dataset that grows by accident is a dataset nobody trusts.
 CODE = [
+    "ml/analyse_drift.py",
     "ml/build.py",
     "ml/build_replay.py",
     "ml/conflict.py",
