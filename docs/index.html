@@ -316,9 +316,17 @@ function render(data){
     defer_s0:"fine-tuned, 4:1 mix (seed 0)",
     defer_s1:"fine-tuned, 4:1 mix (seed 1)",
     deferb_s0:"fine-tuned, balanced (seed 0)",
-    deferb_s1:"fine-tuned, balanced (seed 1)"
+    deferb_s1:"fine-tuned, balanced (seed 1)",
+    deferb_s2:"fine-tuned, balanced (seed 2)",
+    deferb_s3:"fine-tuned, balanced (seed 3)"
   };
-  const order = ["base","prompt","defer_s0","defer_s1","deferb_s0","deferb_s1"];
+  // Ordered explicitly, then anything the scorer knows about that is not listed
+  // gets appended. A hard-coded list silently dropped seeds 2 and 3 the moment
+  // they existed, which is the quiet kind of wrong.
+  const known = ["base","prompt","defer_s0","defer_s1","deferb_s0","deferb_s1",
+                 "deferb_s2","deferb_s3"];
+  const order = known.filter(a => data.scores[a])
+    .concat(Object.keys(data.scores).filter(a => !known.includes(a)));
   const body = document.getElementById("scores");
   for(const arm of order){
     const row = data.scores[arm];
@@ -333,15 +341,25 @@ function render(data){
       `<tr${best}><td>${esc(labels[arm]||arm)}</td>${cells}</tr>`);
   }
 
-  const a = data.scores.deferb_s0.abstention_unanswerable.rate;
-  const b = data.scores.deferb_s1 ? data.scores.deferb_s1.abstention_unanswerable.rate : null;
+  // Computed from whatever balanced seeds exist, not written down. A sentence
+  // that says "the two seeds" while four are in the table is how a page starts
+  // lying about its own data.
+  const balanced = Object.keys(data.scores).filter(a => a.startsWith("deferb_"));
+  const spread = key => {
+    const v = balanced.map(a => data.scores[a][key].rate * 100);
+    return {lo: Math.min(...v), hi: Math.max(...v), n: v.length};
+  };
+  const abst = spread("abstention_unanswerable");
+  const conf = spread("conflict_following");
   document.getElementById("caveat").innerHTML =
-    "<b>What is not settled.</b> The two balanced seeds landed " +
-    pct(a) + " and " + pct(b) + " on “admitted not knowing” — 10 points apart, " +
-    "with overlapping error bars. The direction is certain; the exact level is not, " +
-    "so that row is a range rather than a figure. “Followed the document” landed on " +
-    pct(data.scores.deferb_s0.conflict_following.rate) + " twice. At this size, " +
-    "knowing when to stay quiet is a much shakier skill than knowing which text to trust.";
+    "<b>What is not settled.</b> " + abst.n + " runs of the same recipe — same data, " +
+    "same settings, only the shuffle differs — landed between <b>" +
+    abst.lo.toFixed(1) + "%</b> and <b>" + abst.hi.toFixed(1) + "%</b> on “admitted not " +
+    "knowing”, a spread of " + (abst.hi - abst.lo).toFixed(1) + " points. Over the same " +
+    "runs, “followed the document” moved only " + (conf.hi - conf.lo).toFixed(1) +
+    " points. Two runs could have been one unlucky draw; " + abst.n + " cannot. " +
+    "At this size, knowing when to stay quiet is a far shakier skill than knowing " +
+    "which text to trust — so that row is a range, never a single figure.";
 }
 
 fetch("data/replay.json")
