@@ -14,6 +14,7 @@
   --oxblood:#6B1F1F; --parchment:#EFE7D6; --ink:#1A1512;
   --followed:#2E5E3A; --memory:#8C2F1D; --rule:#C4B49A;
   --page:#EFE7D6; --card:#F7F2E6; --edge:#D8CBB2; --muted:#6A5F4E;
+  --oxblood-fill:#6B1F1F; --on-oxblood:#F7F2E6;
   --stamp-shadow:rgba(26,21,18,.12);
   --slab:'Roboto Slab','Bookman Old Style',Georgia,serif;
   --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
@@ -23,6 +24,7 @@
     --page:#15110F; --card:#1E1917; --edge:#3A312B; --ink:#E9DFCE;
     --muted:#A2937E; --parchment:#1E1917; --rule:#4A4038;
     --oxblood:#B44A46; --followed:#6FBF86; --memory:#E2705A;
+    --oxblood-fill:#8A2F2A; --on-oxblood:#FBF3E6;
     --stamp-shadow:rgba(0,0,0,.5);
   }
 }
@@ -30,6 +32,7 @@
   --page:#15110F; --card:#1E1917; --edge:#3A312B; --ink:#E9DFCE;
   --muted:#A2937E; --parchment:#1E1917; --rule:#4A4038;
   --oxblood:#B44A46; --followed:#6FBF86; --memory:#E2705A;
+  --oxblood-fill:#8A2F2A; --on-oxblood:#FBF3E6;
   --stamp-shadow:rgba(0,0,0,.5);
 }
 
@@ -61,8 +64,8 @@ h1{
   font-size:.78rem;font-weight:600;letter-spacing:.04em;background:transparent;
   cursor:pointer;transition:background .12s,color .12s;
 }
-.btn:hover{background:var(--oxblood);color:var(--card)}
-.btn.solid{background:var(--oxblood);color:var(--card)}
+.btn:hover{background:var(--oxblood-fill);color:var(--on-oxblood)}
+.btn.solid{background:var(--oxblood-fill);color:var(--on-oxblood)}
 .btn.solid:hover{filter:brightness(1.15)}
 #theme{position:absolute;top:18px;right:20px;padding:5px 10px;font-size:.7rem}
 
@@ -154,7 +157,7 @@ tbody tr:last-child{background:rgba(107,31,31,.045)}
 
 footer{border-top:1px solid var(--edge);padding:26px 0 44px;color:var(--muted);font-size:.86rem}
 footer a{color:var(--oxblood)}
-code{font-family:var(--mono);font-size:.86em;background:rgba(107,31,31,.07);padding:1px 5px}
+code{font-family:var(--mono);font-size:.86em;overflow-wrap:anywhere;background:rgba(107,31,31,.07);padding:1px 5px}
 :root[data-theme="dark"] code,:root:not([data-theme="light"]) code{background:rgba(255,255,255,.07)}
 .caveat{border-left:3px solid var(--oxblood);padding:2px 0 2px 14px;margin:18px 0;color:var(--muted);font-size:.92rem;max-width:66ch}
 </style>
