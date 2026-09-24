@@ -121,7 +121,12 @@ base model ┘                          │
    ml/score.py            ml/build_replay.py
         │                        │
         ▼                        ▼
-results/scores.txt      docs/data/replay.json ──► docs/index.html
+results/scores.json     docs/data/replay.json
+        └──────────┬──────────┘
+                   ▼
+          docs/build_site.py + docs/template.html
+                   ▼
+             docs/index.html  (generated)
 ```
 
 Formats are in [SCHEMA.md](SCHEMA.md). Everything on disk is JSONL — one JSON

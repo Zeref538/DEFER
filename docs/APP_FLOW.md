@@ -114,8 +114,16 @@ between a result and a claim.
 
 ## 2. The page
 
-Static HTML at `docs/index.html`. No build step, no framework, no server. A
-visitor's whole journey is one page and one JSON file.
+Static HTML, no framework and no server, but there is one build step:
+
+```bash
+python docs/build_site.py      # docs/template.html -> docs/index.html
+```
+
+`docs/template.html` is the source. `docs/index.html` is generated and should
+never be edited by hand. The build injects the scored results into the page and
+then asserts that every figure quoted in the prose matches the artifacts, so a
+stale number breaks the build instead of shipping.
 
 ```mermaid
 flowchart TD

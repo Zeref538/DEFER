@@ -344,8 +344,8 @@ rather than nine hours in.
 
 `docs/index.html` replays real logged answers from `runs/`. It does not run a
 model, so it cannot disagree with the study — which is the entire reason it works
-that way. You cannot paste your own passage into it; the published adapter is the
-honest answer to that, once there is one.
+that way. You cannot paste your own passage into it. The published adapter is the
+honest answer to that: [Llama-3.2-3B-DEFER](https://huggingface.co/Zeref8425/Llama-3.2-3B-DEFER).
 
 Reasoning: [ADR 0004](docs/adr/0004-replay-demo-not-live-inference.md).
 
