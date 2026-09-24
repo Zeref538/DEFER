@@ -34,3 +34,6 @@ adapters/
 
 # playwright scratch
 .playwright-mcp/
+
+# case-study screenshots, regenerated on demand
+final/
